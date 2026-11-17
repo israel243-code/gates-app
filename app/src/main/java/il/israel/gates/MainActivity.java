@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         take(getIntent());
         show();
+        Updater.check(this, true); // פעם ביום: חלון רק אם יש גרסה חדשה
     }
 
     @Override
@@ -146,6 +147,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void stop() { runOnUiThread(() -> LocService.stop(MainActivity.this)); }
         @JavascriptInterface public String cars() { return String.valueOf(Prefs.cars(MainActivity.this).size()); }
         @JavascriptInterface public boolean auto() { return Prefs.auto(MainActivity.this); }
+        @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> Updater.check(MainActivity.this, false)); }
+        @JavascriptInterface public String version() { return Updater.currentName(MainActivity.this); }
     }
 
     @Override

@@ -134,6 +134,11 @@ public class SettingsActivity extends Activity {
         man.addView(row);
         Ui.button(this, man, "⏹️ עצור שידור", false, v -> { LocService.stop(this); h.postDelayed(this::refresh, 500); });
 
+        // --- עדכונים (כל עוד האפליקציה לא בחנות) ---
+        LinearLayout upd = Ui.card(this, root, "🔄 עדכונים");
+        Ui.note(this, upd, "הגרסה שלך: " + Updater.currentName(this) + ". האפליקציה בודקת לבד פעם ביום; אפשר גם לבדוק עכשיו.");
+        Ui.button(this, upd, "🔄 בדוק עדכונים", false, v -> Updater.check(this, false));
+
         // --- 4. קישור ---
         LinearLayout link = Ui.card(this, root, "🔗 הקישור האישי");
         Ui.note(this, link, "קיבלת קישור חדש? פשוט לחץ עליו בוואטסאפ ובחר \"שערים\".");
