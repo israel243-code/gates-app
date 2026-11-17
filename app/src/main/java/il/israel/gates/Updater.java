@@ -2,6 +2,12 @@ package il.israel.gates;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.Settings;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -33,6 +39,43 @@ final class Updater {
 
     /** עד ההשקה הרשמית: "1 (עדכון N)" */
     static String currentName(Context c) { return "1 (עדכון " + current(c) + ")"; }
+
+    /**
+     * הורדה בתוך האפליקציה (DownloadManager) ופתיחת מסך ההתקנה של אנדרואיד – בלי דפדפן (17/11: העדכון דרך הדפדפן לא עבד טוב).
+     * בפעם הראשונה אנדרואיד מבקש לאשר "התקנה ממקור זה" לאפליקציה – פותחים את המסך הזה ומבקשים ללחוץ שוב.
+     */
+    static void install(Activity a) {
+        if (Build.VERSION.SDK_INT >= 26 && !a.getPackageManager().canRequestPackageInstalls()) {
+            new AlertDialog.Builder(a).setTitle("אישור חד-פעמי")
+                    .setMessage("כדי שהאפליקציה תוכל לעדכן את עצמה, אנדרואיד מבקש לאשר \"התקנה ממקור זה\".\nבמסך שנפתח – מדליקים את המתג, חוזרים, ולוחצים שוב \"בדוק עדכונים\".")
+                    .setPositiveButton("פתח", (d, w) -> a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName()))))
+                    .setNegativeButton("ביטול", null).show();
+            return;
+        }
+        try {
+            final DownloadManager dm = a.getSystemService(DownloadManager.class);
+            final long id = dm.enqueue(new DownloadManager.Request(Uri.parse(APK))
+                    .setTitle("עדכון לאפליקציית השערים").setMimeType("application/vnd.android.package-archive")
+                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+                    .setDestinationInExternalFilesDir(a, Environment.DIRECTORY_DOWNLOADS, "gates-" + System.currentTimeMillis() + ".apk"));
+            Toast.makeText(a, "⬇️ מוריד את העדכון…", Toast.LENGTH_LONG).show();
+            final Context app = a.getApplicationContext();
+            BroadcastReceiver done = new BroadcastReceiver() {
+                @Override public void onReceive(Context c, Intent i) {
+                    if (i.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1) != id) return;
+                    try { app.unregisterReceiver(this); } catch (Exception e) { /* כבר בוטל */ }
+                    Uri u = dm.getUriForDownloadedFile(id);
+                    if (u == null) { Toast.makeText(app, "ההורדה נכשלה. נסה שוב.", Toast.LENGTH_LONG).show(); return; }
+                    app.startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(u, "application/vnd.android.package-archive")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK));
+                }
+            };
+            IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+            if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(done, f, Context.RECEIVER_EXPORTED); else app.registerReceiver(done, f);
+        } catch (Exception e) {
+            a.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(APK))); // גיבוי: דרך הדפדפן
+        }
+    }
 
     /** silent = בדיקה אוטומטית (פעם ביום, בפתיחה): מציג חלון רק כשיש עדכון */
     static void check(Activity a, boolean silent) {
@@ -71,8 +114,8 @@ final class Updater {
                     new AlertDialog.Builder(a)
                             .setTitle("🆕 יש עדכון חדש לאפליקציה")
                             .setMessage("הגרסה שלך: " + currentName(a) + " · העדכון החדש: " + lv + "\n" + (nt.isEmpty() || nt.equals("בנייה אוטומטית") ? "" : nt + "\n")
-                                    + "\nההורדה נפתחת בדפדפן. אחרי שהיא מסתיימת – לוחצים על הקובץ ומאשרים התקנה. ההגדרות שלך נשמרות.")
-                            .setPositiveButton("⬇️ הורד ועדכן", (d, w) -> a.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(APK))))
+                                    + "\nההורדה נעשית בתוך האפליקציה, ובסוף נפתח מסך ההתקנה – לוחצים \"עדכן\". ההגדרות שלך נשמרות.")
+                            .setPositiveButton("⬇️ עדכן עכשיו", (d, w) -> install(a))
                             .setNegativeButton("אחר כך", null)
                             .show();
                 } else if (!silent) {
