@@ -32,4 +32,4 @@ jobs:
         run: |
           cp app/build/outputs/apk/release/app-release.apk gates.apk
           gh release delete latest -y --cleanup-tag || true
-          gh release create latest gates.apk --title "שערים – גרסה 1.${{ github.run_number }}" --notes "בנייה אוטומטית"
+          gh release create latest gates.apk --title "שערים 1 · עדכון ${{ github.run_number }} · b1.${{ github.run_number }}" --notes "בנייה אוטומטית"

@@ -31,10 +31,8 @@ final class Updater {
         catch (Exception e) { return 0; }
     }
 
-    static String currentName(Context c) {
-        try { return c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName; }
-        catch (Exception e) { return "?"; }
-    }
+    /** עד ההשקה הרשמית: "1 (עדכון N)" */
+    static String currentName(Context c) { return "1 (עדכון " + current(c) + ")"; }
 
     /** silent = בדיקה אוטומטית (פעם ביום, בפתיחה): מציג חלון רק כשיש עדכון */
     static void check(Activity a, boolean silent) {
@@ -55,8 +53,10 @@ final class Updater {
                 c.setRequestProperty("User-Agent", "GatesApp");
                 try (InputStream in = c.getInputStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) {
                     JSONObject j = new JSONObject(s.hasNext() ? s.next() : "{}");
-                    Matcher m = Pattern.compile("1\\.(\\d+)").matcher(j.optString("name", ""));
-                    if (m.find()) latest = Integer.parseInt(m.group(1));
+                    String name = j.optString("name", "");
+                    Matcher m = Pattern.compile("עדכון (\\d+)").matcher(name);
+                    if (!m.find()) { m = Pattern.compile("1\\.(\\d+)").matcher(name); if (!m.find()) m = null; }
+                    if (m != null) latest = Integer.parseInt(m.group(1));
                     notes = j.optString("body", "");
                 }
             } catch (Exception e) {
@@ -69,8 +69,8 @@ final class Updater {
                 if (a.isFinishing()) return;
                 if (lv > current(a)) {
                     new AlertDialog.Builder(a)
-                            .setTitle("🆕 יש גרסה חדשה: 1." + lv)
-                            .setMessage("הגרסה שלך: " + currentName(a) + "\n" + (nt.isEmpty() || nt.equals("בנייה אוטומטית") ? "" : nt + "\n")
+                            .setTitle("🆕 יש עדכון חדש לאפליקציה")
+                            .setMessage("הגרסה שלך: " + currentName(a) + " · העדכון החדש: " + lv + "\n" + (nt.isEmpty() || nt.equals("בנייה אוטומטית") ? "" : nt + "\n")
                                     + "\nההורדה נפתחת בדפדפן. אחרי שהיא מסתיימת – לוחצים על הקובץ ומאשרים התקנה. ההגדרות שלך נשמרות.")
                             .setPositiveButton("⬇️ הורד ועדכן", (d, w) -> a.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(APK))))
                             .setNegativeButton("אחר כך", null)

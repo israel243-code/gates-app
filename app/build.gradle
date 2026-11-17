@@ -13,7 +13,7 @@ android {
         minSdk 26
         targetSdk 34
         versionCode run
-        versionName "1.${run}"
+        versionName "1" // עד ההשקה הרשמית: גרסה 1; כל בנייה = "עדכון N" (versionCode)
     }
 
     // מפתח חתימה קבוע: כל גרסה חדשה מותקנת מעל הקודמת (בלי להסיר)
