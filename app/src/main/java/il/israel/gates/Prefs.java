@@ -31,6 +31,26 @@ final class Prefs {
                 && t != null && t.matches("[A-Za-z0-9_-]{20,40}");
     }
 
+    /** קישור קצר: https://<שרת>/g/<קוד> */
+    static boolean isShort(String s) {
+        if (s == null) return false;
+        Uri u = Uri.parse(s.trim());
+        return "https".equals(u.getScheme()) && u.getPath() != null && u.getPath().matches("/g/[A-Za-z0-9]{5,12}/?");
+    }
+
+    /** קישור קצר → הקישור המלא (בקשה לשרת בלי לעקוב אחרי ההפניה). רק מחוץ ל-UI thread. null אם לא תקין / פג. */
+    static String resolveShort(String s) {
+        try {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(s.trim()).openConnection();
+            c.setInstanceFollowRedirects(false);
+            c.setConnectTimeout(8000);
+            c.setReadTimeout(8000);
+            String loc = c.getHeaderField("Location");
+            c.disconnect();
+            return valid(loc) ? loc : null;
+        } catch (Exception e) { return null; }
+    }
+
     /** https://<שרת>/gate/<מפתח>?t=X  ->  https://<שרת>/gate/<מפתח>/loc?t=X */
     static String locUrl(Context c) {
         String s = url(c);

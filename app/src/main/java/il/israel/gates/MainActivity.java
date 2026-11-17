@@ -46,14 +46,30 @@ public class MainActivity extends Activity {
         if (take(i)) show();
     }
 
-    /** קישור שנפתח מבחוץ: קישור אורח → נשמר; כל קישור אחר של השרת → לדפדפן. */
+    /** קישור שנפתח מבחוץ: קישור אורח (מלא או קצר) → נשמר; כל קישור אחר של השרת → לדפדפן. */
     private boolean take(Intent i) {
         Uri d = i == null ? null : i.getData();
         if (d == null) return false;
         if (Prefs.valid(d.toString())) { Prefs.setUrl(this, d.toString()); return true; }
+        if (Prefs.isShort(d.toString())) { useLink(d.toString()); return false; }
         try { startActivity(new Intent(Intent.ACTION_VIEW, d).addCategory(Intent.CATEGORY_BROWSABLE).setPackage("com.android.chrome")); }
         catch (Exception e) { Toast.makeText(this, "זה לא קישור של שערים. פתח אותו בדפדפן.", Toast.LENGTH_LONG).show(); }
         return false;
+    }
+
+    /** קישור מלא או קצר (מוואטסאפ / הדבקה): קצר → פונים לשרת ומקבלים את המלא. */
+    private void useLink(String u) {
+        if (Prefs.valid(u)) { Prefs.setUrl(this, u); show(); return; }
+        if (!Prefs.isShort(u)) { Toast.makeText(this, "זה לא קישור תקין. העתק את כל הקישור שקיבלת.", Toast.LENGTH_LONG).show(); return; }
+        Toast.makeText(this, "בודק את הקישור…", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            String full = Prefs.resolveShort(u);
+            runOnUiThread(() -> {
+                if (full == null) { Toast.makeText(this, "הקישור פג או לא תקין. בקש קישור חדש.", Toast.LENGTH_LONG).show(); return; }
+                Prefs.setUrl(this, full);
+                show();
+            });
+        }).start();
     }
 
     private void show() {
@@ -81,7 +97,7 @@ public class MainActivity extends Activity {
         Ui.step(this, k, 1, false, "לוחצים על הקישור בוואטסאפ", "ובוחרים לפתוח עם \"שערים\"", null, null);
         Ui.step(this, k, 2, false, "או מדביקים אותו כאן", null, null, null);
         EditText e = new EditText(this);
-        e.setHint("https://…");
+        e.setHint("https://isrnb.duckdns.org/g/…");
         e.setSingleLine(true);
         e.setTextSize(15);
         e.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
@@ -94,10 +110,7 @@ public class MainActivity extends Activity {
             if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) e.setText(String.valueOf(cm.getPrimaryClip().getItemAt(0).coerceToText(this)).trim());
         });
         Ui.button(this, k, "המשך", true, v -> {
-            String u = e.getText().toString().trim();
-            if (!Prefs.valid(u)) { Toast.makeText(this, "זה לא קישור תקין. העתק את כל הקישור שקיבלת.", Toast.LENGTH_LONG).show(); return; }
-            Prefs.setUrl(this, u);
-            show();
+            useLink(e.getText().toString().trim());
         });
         setContentView(sv);
     }
