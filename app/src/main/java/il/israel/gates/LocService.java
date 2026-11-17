@@ -55,7 +55,9 @@ public class LocService extends Service implements LocationListener {
 
     @Override
     public int onStartCommand(Intent i, int flags, int id) {
-        why = i != null && i.getStringExtra("why") != null ? i.getStringExtra("why") : "";
+        // הפעלה מחדש של המערכת אחרי שהאפליקציה נסגרה (בלי בקשה): לא משדרים בלי הגבלה – עוצרים (בדיקת קוד, 17/11)
+        if (i == null) { stopSelf(); return START_NOT_STICKY; }
+        why = i.getStringExtra("why") != null ? i.getStringExtra("why") : "";
         int min = i != null ? i.getIntExtra("min", 0) : 0;
         until = min > 0 ? System.currentTimeMillis() + min * 60000L : 0;
         NotificationManager nm = getSystemService(NotificationManager.class);
