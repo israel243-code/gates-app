@@ -115,6 +115,17 @@ public class SettingsActivity extends Activity {
             }
         }
 
+        // --- פרטיות (ניסיוני) – תשתית לאפשרות ג' ---
+        LinearLayout priv = Ui.card(this, root, "🔒 חישוב בטלפון (ניסיוני)");
+        Switch loc = new Switch(this);
+        loc.setText("המיקום לא נשלח לשרת – הטלפון מחליט לבד מתי לפתוח");
+        loc.setTextSize(15);
+        loc.setTextColor(Ui.INK);
+        loc.setChecked(Prefs.local(this));
+        loc.setOnCheckedChangeListener((v, on) -> Prefs.setLocal(this, on));
+        priv.addView(loc);
+        Ui.note(this, priv, "אותם כללים: בתוך המרחק, מתקרבים, וזמן בין פתיחות. לשרת נשלחת רק בקשה \"לפתוח את השער\". המיקום שלך לא יופיע במפה של אף אחד.");
+
         // --- 3. שידור ידני ---
         LinearLayout man = Ui.card(this, root, "📡 שידור עכשיו");
         Ui.note(this, man, "למשל ברכב אחר. נעצר לבד בסוף הזמן.");

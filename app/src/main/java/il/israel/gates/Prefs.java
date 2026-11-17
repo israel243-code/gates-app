@@ -20,6 +20,10 @@ final class Prefs {
     static void setCars(Context c, Set<String> s) { p(c).edit().putStringSet("cars", new HashSet<>(s)).apply(); }
 
     static boolean auto(Context c) { return p(c).getBoolean("auto", true); }
+
+    /** "חישוב בטלפון" (ניסיוני): המיקום לא נשלח לשרת – רק "לפתוח את X" */
+    static boolean local(Context c) { return p(c).getBoolean("local", false); }
+    static void setLocal(Context c, boolean b) { p(c).edit().putBoolean("local", b).apply(); }
     static void setAuto(Context c, boolean b) { p(c).edit().putBoolean("auto", b).apply(); }
 
     /** קישור אורח תקין: https://<שרת>/gate/<מפתח>?t=<טוקן> */

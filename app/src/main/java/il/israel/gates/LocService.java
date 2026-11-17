@@ -42,6 +42,7 @@ public class LocService extends Service implements LocationListener {
     private long until = 0, lastSent = 0;
     private PowerManager.WakeLock wl;
     private String why = "";
+    private LocalEngine engine;
 
     static void start(Context c, String why, int minutes) {
         Intent i = new Intent(c, LocService.class).putExtra("why", why).putExtra("min", minutes);
@@ -107,6 +108,19 @@ public class LocService extends Service implements LocationListener {
         if (now - lastSent < 2500) return;
         lastSent = now;
         if (l.hasAccuracy() && l.getAccuracy() > 80) { state = "GPS חלש"; return; }
+        if (Prefs.local(this)) { // חישוב בטלפון: המיקום לא יוצא מהטלפון
+            if (engine == null) engine = new LocalEngine(this);
+            final double la = l.getLatitude(), lo = l.getLongitude();
+            net.execute(() -> {
+                try {
+                    String r = engine.onFix(la, lo);
+                    state = engine.state.isEmpty() ? "משדר (חישוב בטלפון)" : engine.state;
+                    if ("expired".equals(r)) h.post(() -> { show("⌛ הקישור פג – בקש קישור חדש"); stopSelf(); });
+                    else if ("open".equals(r)) h.post(() -> show(engine.state));
+                } catch (Exception e) { state = "אין אינטרנט"; }
+            });
+            return;
+        }
         final String u = Prefs.locUrl(this);
         if (u == null) { state = "אין קישור"; return; }
         final String body = "lat=" + l.getLatitude() + "&lon=" + l.getLongitude() + "&acc=" + (l.hasAccuracy() ? l.getAccuracy() : 0);
