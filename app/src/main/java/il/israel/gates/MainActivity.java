@@ -67,31 +67,38 @@ public class MainActivity extends Activity {
     private int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density); }
 
     private void onboarding() {
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.VERTICAL);
-        l.setPadding(dp(24), dp(48), dp(24), dp(24));
-        l.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        TextView t = new TextView(this);
-        t.setText("🚪 שערים");
-        t.setTextSize(28);
-        t.setTypeface(Typeface.DEFAULT_BOLD);
-        TextView s = new TextView(this);
-        s.setText("הדבק כאן את הקישור האישי שקיבלת בוואטסאפ.\nאפשר גם פשוט ללחוץ על הקישור בוואטסאפ ולבחור \"שערים\".");
-        s.setTextSize(16);
-        s.setPadding(0, dp(12), 0, dp(16));
+        getWindow().setStatusBarColor(Color.parseColor("#1E3A8A"));
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.setBackgroundColor(Ui.BG);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        sv.addView(root);
+        root.addView(Ui.hero(this, "🚪 שערים", "השערים נפתחים לבד כשמתקרבים"));
+        LinearLayout k = Ui.card(this, root, "ברוך הבא");
+        Ui.note(this, k, "כדי להתחיל צריך קישור אישי. מקבלים אותו בוואטסאפ ממי שנותן לך גישה לשערים.");
+        Ui.step(this, k, 1, false, "לוחצים על הקישור בוואטסאפ", "ובוחרים לפתוח עם \"שערים\"", null, null);
+        Ui.step(this, k, 2, false, "או מדביקים אותו כאן", null, null, null);
         EditText e = new EditText(this);
         e.setHint("https://…");
         e.setSingleLine(true);
-        Button go = new Button(this);
-        go.setText("המשך");
-        go.setOnClickListener(v -> {
+        e.setTextSize(15);
+        e.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
+        e.setBackground(Ui.round(Ui.SOFT, Ui.dp(this, 12)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, Ui.dp(this, 8), 0, Ui.dp(this, 4));
+        k.addView(e, lp);
+        Ui.button(this, k, "📋 הדבק מהלוח", false, v -> {
+            android.content.ClipboardManager cm = getSystemService(android.content.ClipboardManager.class);
+            if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) e.setText(String.valueOf(cm.getPrimaryClip().getItemAt(0).coerceToText(this)).trim());
+        });
+        Ui.button(this, k, "המשך", true, v -> {
             String u = e.getText().toString().trim();
             if (!Prefs.valid(u)) { Toast.makeText(this, "זה לא קישור תקין. העתק את כל הקישור שקיבלת.", Toast.LENGTH_LONG).show(); return; }
             Prefs.setUrl(this, u);
             show();
         });
-        l.addView(t); l.addView(s); l.addView(e); l.addView(go);
-        setContentView(l);
+        setContentView(sv);
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
@@ -125,6 +132,7 @@ public class MainActivity extends Activity {
             }
         });
         web.setBackgroundColor(Color.parseColor("#EEF2F7"));
+        getWindow().setStatusBarColor(Color.parseColor("#1E3A8A"));
         setContentView(web);
         web.loadUrl(Prefs.url(this));
     }
