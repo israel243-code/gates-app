@@ -40,6 +40,7 @@ public class LocService extends Service implements LocationListener {
     private final ExecutorService net = Executors.newSingleThreadExecutor();
     private Handler h;
     private long until = 0, lastSent = 0;
+    private boolean firstFix = true;
     private PowerManager.WakeLock wl;
     private String why = "";
     private LocalEngine engine;
@@ -55,7 +56,7 @@ public class LocService extends Service implements LocationListener {
 
     @Override
     public int onStartCommand(Intent i, int flags, int id) {
-        if (i != null && Prefs.local(this)) LocalEngine.log("▶️ השידור התחיל (" + (i.getStringExtra("why") == null ? "" : i.getStringExtra("why")) + ") – חישוב בטלפון");
+        if (i != null) LocalEngine.log("▶️ השידור התחיל (" + (i.getStringExtra("why") == null ? "" : i.getStringExtra("why")) + ") – חישוב בטלפון");
         // הפעלה מחדש של המערכת אחרי שהאפליקציה נסגרה (בלי בקשה): לא משדרים בלי הגבלה – עוצרים (בדיקת קוד, 17/11)
         if (i == null) { stopSelf(); return START_NOT_STICKY; }
         why = i.getStringExtra("why") != null ? i.getStringExtra("why") : "";
@@ -91,9 +92,11 @@ public class LocService extends Service implements LocationListener {
         return START_STICKY;
     }
 
+    private int ticks = 0;
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             if (until > 0 && System.currentTimeMillis() > until) { state = "הזמן נגמר"; stopSelf(); return; }
+            if (++ticks % 12 == 0) net.execute(() -> LocalEngine.upload(LocService.this)); // כל דקה – היומן לשרת (מצב מנהל)
             h.postDelayed(this, 5000);
         }
     };
@@ -116,6 +119,7 @@ public class LocService extends Service implements LocationListener {
         long now = System.currentTimeMillis();
         if (now - lastSent < 2500) return;
         lastSent = now;
+        if (lastSent == 0 || firstFix) { firstFix = false; LocalEngine.log("📡 מיקום ראשון מה-GPS" + (l.hasAccuracy() ? " (דיוק " + Math.round(l.getAccuracy()) + " מ׳)" : "")); }
         if (l.hasAccuracy() && l.getAccuracy() > 80) { state = "GPS חלש"; if (Prefs.local(this)) LocalEngine.log("GPS חלש (" + Math.round(l.getAccuracy()) + " מ׳) – מחכה"); return; }
         if (Prefs.local(this)) { // חישוב בטלפון: המיקום לא יוצא מהטלפון
             if (engine == null) engine = new LocalEngine(this);
@@ -162,6 +166,8 @@ public class LocService extends Service implements LocationListener {
 
     @Override
     public void onDestroy() {
+        LocalEngine.log("⏹️ השידור נעצר" + (state == null || state.isEmpty() ? "" : " (" + state + ")"));
+        final android.content.Context ctx = getApplicationContext(); new Thread(() -> LocalEngine.upload(ctx)).start();
         running = false;
         if (lm != null) lm.removeUpdates(this);
         if (wl != null && wl.isHeld()) wl.release();

@@ -10,7 +10,7 @@ import android.os.Build;
 public class BtReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent i) {
-        if (!Prefs.auto(c) || Prefs.locUrl(c) == null) return;
+        if (!Prefs.auto(c) || Prefs.locUrl(c) == null) { if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(i.getAction())) LocalEngine.log("🚗 בלוטות' התחבר אבל " + (!Prefs.auto(c) ? "הפתיחה האוטומטית כבויה בהגדרות" : "אין קישור אישי")); return; }
         BluetoothDevice d = Build.VERSION.SDK_INT >= 33
                 ? i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class)
                 : i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
@@ -18,8 +18,10 @@ public class BtReceiver extends BroadcastReceiver {
         String name = "";
         try { name = d.getName() == null ? "" : d.getName(); } catch (SecurityException e) { /* בלי שם */ }
         if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(i.getAction())) {
-            try { LocService.start(c, name, 0); } catch (Exception e) { LocService.state = "אנדרואיד חסם התחלה ברקע – בטל חיסכון סוללה"; }
+            LocalEngine.log("🚗 הרכב התחבר: " + name);
+            try { LocService.start(c, name, 0); } catch (Exception e) { LocService.state = "אנדרואיד חסם התחלה ברקע – בטל חיסכון סוללה"; LocalEngine.log("⚠️ " + LocService.state + " (" + e.getClass().getSimpleName() + ")"); }
         } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(i.getAction())) {
+            LocalEngine.log("🚗 הרכב התנתק: " + name);
             LocService.stop(c);
         }
     }

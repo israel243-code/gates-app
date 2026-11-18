@@ -32,9 +32,26 @@ final class LocalEngine {
 
     // יומן קצר בטלפון (18/11: "למה הניסיוני לא עבד?") – מוצג בהגדרות; בלי מיקומים, רק מרחקים והחלטות
     static final java.util.ArrayList<String> LOG = new java.util.ArrayList<>();
+    static final java.util.ArrayList<String> PENDING = new java.util.ArrayList<>(); // שורות שעוד לא נשלחו לשרת (רק במצב מנהל)
+
+    /** 📤 שליחת היומן לשרת – רק במצב מנהל (הבעלים, 18/11: "לחבר את 'מה קרה לאחרונה' לשרת, כרגע רק למנהל"). רץ על תהליכון הרשת. */
+    static void upload(Context c) {
+        if (!Prefs.isDash(Prefs.admin(c))) return;
+        String body; synchronized (LOG) { if (PENDING.isEmpty()) return; body = String.join("\n", PENDING); PENDING.clear(); }
+        String s = Prefs.url(c); if (!Prefs.valid(s)) return;
+        Uri u = Uri.parse(s);
+        String url = u.getScheme() + "://" + u.getAuthority() + u.getPath().replaceAll("/+$", "") + "/gcfg?t=" + Uri.encode(u.getQueryParameter("t"));
+        try {
+            HttpURLConnection h = (HttpURLConnection) new URL(url).openConnection();
+            h.setConnectTimeout(8000); h.setReadTimeout(8000); h.setRequestMethod("POST"); h.setDoOutput(true);
+            h.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); h.setRequestProperty("User-Agent", "GatesApp/1");
+            try (OutputStream o = h.getOutputStream()) { o.write(("applog=" + Uri.encode(body)).getBytes(StandardCharsets.UTF_8)); }
+            h.getResponseCode();
+        } catch (Exception e) { synchronized (LOG) { PENDING.add(0, body); } } // בלי רשת – יישלח בפעם הבאה
+    }
     static void log(String s) {
         String t = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
-        synchronized (LOG) { LOG.add(0, t + "  " + s); while (LOG.size() > 40) LOG.remove(LOG.size() - 1); }
+        synchronized (LOG) { LOG.add(0, t + "  " + s); while (LOG.size() > 40) LOG.remove(LOG.size() - 1); PENDING.add(t + "  " + s); while (PENDING.size() > 200) PENDING.remove(0); }
     }
 
     LocalEngine(Context c) {
