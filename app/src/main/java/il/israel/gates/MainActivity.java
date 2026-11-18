@@ -232,6 +232,10 @@ public class MainActivity extends Activity {
                 try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception e) { Toast.makeText(MainActivity.this, "אין אפליקציה שפותחת את זה", Toast.LENGTH_SHORT).show(); }
             });
         }
+        /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
+        @JavascriptInterface public void peekUpdate() { Updater.peek(); }
+        @JavascriptInterface public String updateAvail() { int k = Updater.known; return k > Updater.current(MainActivity.this) ? "עדכון " + Math.max(1, k - Updater.BASE) : ""; }
+        @JavascriptInterface public void installUpdate() { runOnUiThread(() -> Updater.install(MainActivity.this)); }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) {
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");

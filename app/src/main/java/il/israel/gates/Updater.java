@@ -79,6 +79,22 @@ final class Updater {
         }
     }
 
+    /** 🔔 לפעמון בדשבורד (מצב מנהל, 18/11): בדיקה שקטה ברקע; known = מספר הבנייה האחרונה שנמצאה (0 = לא ידוע) */
+    static volatile int known = 0;
+    static void peek() {
+        new Thread(() -> {
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(API).openConnection();
+                c.setConnectTimeout(8000); c.setReadTimeout(8000); c.setRequestProperty("User-Agent", "GatesApp");
+                try (InputStream in = c.getInputStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) {
+                    String name = new JSONObject(s.hasNext() ? s.next() : "{}").optString("name", "");
+                    Matcher m = Pattern.compile("b1\\.(\\d+)").matcher(name);
+                    if (m.find()) known = Integer.parseInt(m.group(1));
+                }
+            } catch (Exception e) { /* בלי רשת – ננסה בפעם הבאה */ }
+        }).start();
+    }
+
     /** silent = בדיקה אוטומטית (פעם ביום, בפתיחה): מציג חלון רק כשיש עדכון */
     static void check(Activity a, boolean silent) {
         if (silent) {
