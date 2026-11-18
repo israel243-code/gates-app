@@ -223,6 +223,15 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void saveLink(String u) { if (Prefs.valid(u)) runOnUiThread(() -> { Prefs.setUrl(MainActivity.this, u); show(); }); }
         /** דף השערים: המשתמש שינה הגדרה (מיקום / מרחק / שערים) – הטלפון יעדכן את הנתונים השמורים בנסיעה הבאה */
         @JavascriptInterface public void gatesChanged() { getSharedPreferences("gates", MODE_PRIVATE).edit().putBoolean("stDirty", true).apply(); }
+        /** 📧 קישור מייל מהדף: ישר לאפליקציית Gmail (בלי לעבור דרך הדפדפן הפנימי) – 18/11 */
+        @JavascriptInterface public void openMail(String url) {
+            runOnUiThread(() -> {
+                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage("com.google.android.gm")); return; } catch (Exception e) { /* Gmail לא מקבל את הקישור */ }
+                Intent g = getPackageManager().getLaunchIntentForPackage("com.google.android.gm");
+                if (g != null) { startActivity(g); return; }
+                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception e) { Toast.makeText(MainActivity.this, "אין אפליקציה שפותחת את זה", Toast.LENGTH_SHORT).show(); }
+            });
+        }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) {
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");
