@@ -16,6 +16,22 @@ final class Prefs {
     static String url(Context c) { return p(c).getString("url", ""); }
     static void setUrl(Context c, String u) { p(c).edit().putString("url", u == null ? "" : u.trim()).apply(); }
 
+    /** נעילה: 0 = בלי, 1 = לפני כל פתיחה בכפתור, 2 = בכל כניסה לאפליקציה (18/11) */
+    static int lock(Context c) { return p(c).getInt("lock", 0); }
+    static void setLock(Context c, int v) { p(c).edit().putInt("lock", v).apply(); }
+
+    /** מצב מנהל: קישור הדשבורד של הבעלים (נכנסים אליו עם קוד מוואטסאפ, כמו בדפדפן) */
+    static String admin(Context c) { return p(c).getString("admin", ""); }
+    static void setAdmin(Context c, String u) { p(c).edit().putString("admin", u == null ? "" : u.trim()).apply(); }
+    static boolean adminView(Context c) { return p(c).getBoolean("adminView", true); }
+    static void setAdminView(Context c, boolean b) { p(c).edit().putBoolean("adminView", b).apply(); }
+    static boolean isDash(String s) {
+        if (s == null) return false;
+        Uri u = Uri.parse(s.trim());
+        return "https".equals(u.getScheme()) && allowedHost(u) && u.getQuery() == null
+                && u.getPath() != null && u.getPath().matches("/gate/[A-Za-z0-9_-]{20,64}/?");
+    }
+
     static Set<String> cars(Context c) { return new HashSet<>(p(c).getStringSet("cars", new HashSet<>())); }
     static void setCars(Context c, Set<String> s) { p(c).edit().putStringSet("cars", new HashSet<>(s)).apply(); }
 

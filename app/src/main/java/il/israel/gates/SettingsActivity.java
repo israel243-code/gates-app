@@ -151,6 +151,49 @@ public class SettingsActivity extends Activity {
         Ui.note(this, upd, "הגרסה שלך: " + Updater.currentName(this) + ". האפליקציה בודקת לבד פעם ביום; אפשר גם לבדוק עכשיו.");
         Ui.button(this, upd, "🔄 בדוק עדכונים", false, v -> Updater.check(this, false));
 
+        // --- נעילה (לבחירת המשתמש, 18/11) ---
+        LinearLayout lk = Ui.card(this, root, "🔒 נעילה");
+        Ui.note(this, lk, Lock.available(this) ? "טביעת אצבע, פנים או קוד הטלפון. הפתיחה האוטומטית ברכב לא מושפעת."
+                : "בטלפון אין נעילת מסך, לכן הנעילה לא תפעל. מגדירים נעילת מסך בהגדרות הטלפון.");
+        String[] LK = {"בלי נעילה", "לפני כל פתיחה בכפתור", "בכל כניסה לאפליקציה"};
+        android.widget.RadioGroup rg = new android.widget.RadioGroup(this);
+        for (int i = 0; i < 3; i++) {
+            android.widget.RadioButton rb = new android.widget.RadioButton(this);
+            rb.setId(100 + i); rb.setText(LK[i]); rb.setTextColor(Ui.INK); rb.setTextSize(15);
+            rg.addView(rb);
+        }
+        rg.check(100 + Prefs.lock(this));
+        rg.setOnCheckedChangeListener((g, id) -> {
+            int nv = id - 100;
+            if (nv == Prefs.lock(this)) return;
+            Lock.auth(this, "שינוי הנעילה", () -> Prefs.setLock(this, nv), this::build); // שינוי דורש אימות; ביטול = חוזר למצב הקודם
+        });
+        lk.addView(rg);
+
+        // --- מצב מנהל ---
+        LinearLayout adm = Ui.card(this, root, "🛡️ מצב מנהל (לבעלים)");
+        if (!Prefs.isDash(Prefs.admin(this))) {
+            Ui.note(this, adm, "שלח לבוט \"דשבורד\", העתק את הקישור ולחץ כאן. האפליקציה תציג את הדשבורד המלא; הכניסה בקוד מוואטסאפ.");
+            Ui.button(this, adm, "📋 הדבק קישור דשבורד", false, v -> {
+                android.content.ClipboardManager cm = getSystemService(android.content.ClipboardManager.class);
+                CharSequence t = cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0 ? cm.getPrimaryClip().getItemAt(0).coerceToText(this) : null;
+                String s = t == null ? "" : t.toString().trim().replaceAll("(?s)^.*?(https://\\S+).*$", "$1");
+                if (!Prefs.isDash(s)) { android.widget.Toast.makeText(this, "בלוח אין קישור דשבורד", android.widget.Toast.LENGTH_LONG).show(); return; }
+                Prefs.setAdmin(this, s); Prefs.setAdminView(this, true);
+                startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)); finish();
+            });
+        } else {
+            Ui.note(this, adm, Prefs.adminView(this) ? "המסך הראשי: הדשבורד המלא." : "המסך הראשי: דף השערים.");
+            Ui.button(this, adm, Prefs.adminView(this) ? "🚪 עבור לדף השערים" : "🛡️ עבור לדשבורד", false, v -> {
+                Prefs.setAdminView(this, !Prefs.adminView(this));
+                startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)); finish();
+            });
+            Ui.button(this, adm, "הסר מצב מנהל", false, v -> {
+                Prefs.setAdmin(this, "");
+                startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)); finish();
+            });
+        }
+
         // --- 4. קישור ---
         LinearLayout link = Ui.card(this, root, "🔗 הקישור האישי");
         Ui.note(this, link, "קיבלת קישור חדש? פשוט לחץ עליו בוואטסאפ ובחר \"שערים\".");

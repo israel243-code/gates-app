@@ -31,6 +31,8 @@ import android.widget.Toast;
  */
 public class MainActivity extends Activity {
     private WebView web;
+    private long unlockedAt = 0;
+    private boolean authing = false;
     private GeolocationPermissions.Callback geoCb; // מחכים לתשובת המשתמש להרשאת המיקום (18/11)
     private String geoOrigin;
 
@@ -54,6 +56,7 @@ public class MainActivity extends Activity {
         Uri d = i == null ? null : i.getData();
         if (d == null) return false;
         if (Prefs.valid(d.toString())) { Prefs.setUrl(this, d.toString()); return true; }
+        if (Prefs.isDash(d.toString())) { Prefs.setAdmin(this, d.toString()); Prefs.setAdminView(this, true); Toast.makeText(this, "🛡️ מצב מנהל הופעל", Toast.LENGTH_SHORT).show(); return true; }
         if (Prefs.isShort(d.toString())) { useLink(d.toString()); return false; }
         try { startActivity(new Intent(Intent.ACTION_VIEW, d).addCategory(Intent.CATEGORY_BROWSABLE).setPackage("com.android.chrome")); }
         catch (Exception e) { Toast.makeText(this, "זה לא קישור של שערים. פתח אותו בדפדפן.", Toast.LENGTH_LONG).show(); }
@@ -63,6 +66,7 @@ public class MainActivity extends Activity {
     /** קישור מלא או קצר (מוואטסאפ / הדבקה): קצר → פונים לשרת ומקבלים את המלא. */
     private void useLink(String u) {
         if (Prefs.valid(u)) { Prefs.setUrl(this, u); show(); return; }
+        if (Prefs.isDash(u)) { Prefs.setAdmin(this, u); Prefs.setAdminView(this, true); show(); return; }
         if (!Prefs.isShort(u)) { Toast.makeText(this, "זה לא קישור תקין. העתק את כל הקישור שקיבלת.", Toast.LENGTH_LONG).show(); return; }
         Toast.makeText(this, "בודק את הקישור…", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
@@ -75,9 +79,16 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    /** מה פותחים: הדשבורד (מצב מנהל) או דף השערים האישי */
+    private String startUrl() {
+        boolean g = Prefs.valid(Prefs.url(this)), a = Prefs.isDash(Prefs.admin(this));
+        if (a && (Prefs.adminView(this) || !g)) return Prefs.admin(this);
+        return g ? Prefs.url(this) : null;
+    }
+
     private void show() {
-        if (!Prefs.valid(Prefs.url(this))) { onboarding(); return; }
-        if (getSharedPreferences("gates", MODE_PRIVATE).getBoolean("firstSettings", true)) {
+        if (startUrl() == null) { onboarding(); return; }
+        if (Prefs.valid(Prefs.url(this)) && getSharedPreferences("gates", MODE_PRIVATE).getBoolean("firstSettings", true)) {
             getSharedPreferences("gates", MODE_PRIVATE).edit().putBoolean("firstSettings", false).apply();
             startActivity(new Intent(this, SettingsActivity.class));
         }
@@ -143,7 +154,7 @@ public class MainActivity extends Activity {
         ws.setGeolocationEnabled(true);
         ws.setUserAgentString(ws.getUserAgentString() + " GatesApp/1"); // הדף מזהה שזו האפליקציה (מסתיר שידור מהדפדפן, מציג "הגדרות")
         web.addJavascriptInterface(new Bridge(), "GatesApp");
-        final String host = Uri.parse(Prefs.url(this)).getHost();
+        final String start = startUrl(), host = Uri.parse(start).getHost();
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, android.webkit.WebResourceError e) {
@@ -170,7 +181,7 @@ public class MainActivity extends Activity {
         web.setBackgroundColor(Color.parseColor("#EEF2F7"));
         getWindow().setStatusBarColor(Color.parseColor("#1E3A8A"));
         setContentView(web);
-        web.loadUrl(Prefs.url(this));
+        web.loadUrl(start);
     }
 
     /** פונקציות שהדף יכול לקרוא: window.GatesApp.openSettings() וכו'. */
@@ -184,6 +195,13 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean auto() { return Prefs.auto(MainActivity.this); }
         @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> Updater.check(MainActivity.this, false)); }
         @JavascriptInterface public String version() { return Updater.currentName(MainActivity.this); }
+        @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
+        @JavascriptInterface public void auth(String id) {
+            final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");
+            runOnUiThread(() -> Lock.auth(MainActivity.this, "פתיחת שער",
+                    () -> { if (web != null) web.evaluateJavascript("window.__gaAuth && __gaAuth('" + i + "', true)", null); },
+                    () -> { if (web != null) web.evaluateJavascript("window.__gaAuth && __gaAuth('" + i + "', false)", null); }));
+        }
     }
 
     @Override
@@ -194,6 +212,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // נעילה בכל כניסה (אם נבחרה): אחרי דקה מחוץ לאפליקציה – שוב אימות
+        if (web != null && Prefs.lock(this) == 2 && !authing && System.currentTimeMillis() - unlockedAt > 60000) {
+            authing = true; web.setVisibility(View.INVISIBLE);
+            Lock.auth(this, "כניסה לשערים",
+                    () -> { authing = false; unlockedAt = System.currentTimeMillis(); web.setVisibility(View.VISIBLE); },
+                    () -> { authing = false; finish(); });
+        }
         if (web != null) web.evaluateJavascript("window.appRefresh && appRefresh()", null);
     }
 
