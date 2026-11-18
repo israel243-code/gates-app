@@ -106,7 +106,10 @@ public class MainActivity extends Activity {
         root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         sv.addView(root);
         root.addView(Ui.hero(this, "🚪 שערים", "השערים נפתחים לבד כשמתקרבים"));
-        LinearLayout k = Ui.card(this, root, "ברוך הבא");
+        LinearLayout k0 = Ui.card(this, root, "📱 כניסה עם מספר טלפון");
+        Ui.note(this, k0, "הוזמנת עם מספר הטלפון שלך? מקבלים קוד בוואטסאפ ונכנסים – בלי קישור.");
+        Ui.button(this, k0, "📱 כניסה עם מספר טלפון", true, v -> openWeb("https://isrnb.duckdns.org/join"));
+        LinearLayout k = Ui.card(this, root, "או עם קישור");
         Ui.note(this, k, "כדי להתחיל צריך קישור אישי. מקבלים אותו בוואטסאפ ממי שנותן לך גישה לשערים.");
         Ui.step(this, k, 1, false, "לוחצים על הקישור בוואטסאפ", "ובוחרים לפתוח עם \"שערים\"", null, null);
         Ui.step(this, k, 2, false, "או מדביקים אותו כאן", null, null, null);
@@ -145,7 +148,9 @@ public class MainActivity extends Activity {
         setContentView(sv);
     }
 
-    private void openWeb() {
+    private void openWeb() { openWeb(startUrl()); }
+
+    private void openWeb(String start) {
         web = new WebView(this);
         web.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         WebSettings ws = web.getSettings();
@@ -154,7 +159,7 @@ public class MainActivity extends Activity {
         ws.setGeolocationEnabled(true);
         ws.setUserAgentString(ws.getUserAgentString() + " GatesApp/1"); // הדף מזהה שזו האפליקציה (מסתיר שידור מהדפדפן, מציג "הגדרות")
         web.addJavascriptInterface(new Bridge(), "GatesApp");
-        final String start = startUrl(), host = Uri.parse(start).getHost();
+        final String host = Uri.parse(start).getHost();
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, android.webkit.WebResourceError e) {
@@ -195,6 +200,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean auto() { return Prefs.auto(MainActivity.this); }
         @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> Updater.check(MainActivity.this, false)); }
         @JavascriptInterface public String version() { return Updater.currentName(MainActivity.this); }
+        /** דף הכניסה עם מספר טלפון (/join) מחזיר את הקישור האישי – נשמר כמו קישור שנלחץ בוואטסאפ (18/11) */
+        @JavascriptInterface public void saveLink(String u) { if (Prefs.valid(u)) runOnUiThread(() -> { Prefs.setUrl(MainActivity.this, u); show(); }); }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) {
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");
