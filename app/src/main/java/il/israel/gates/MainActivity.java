@@ -171,6 +171,11 @@ public class MainActivity extends Activity {
                 // באפליקציה נשארים רק דפי השערים; כניסה עם גוגל (גוגל חוסמת בתוך אפליקציות), וואטסאפ, OwnTracks וכו' – בחוץ
                 boolean inside = "https".equals(u.getScheme()) && host != null && host.equals(u.getHost()) && !u.getPath().endsWith("/google");
                 if (inside) return false;
+                if ("mail.google.com".equals(u.getHost())) { // 📧 מייל: אפליקציית Gmail (המייל עצמו, ואם לא – פתיחת Gmail), אחרת הדפדפן (18/11)
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, u).setPackage("com.google.android.gm")); return true; } catch (Exception e) { /* Gmail לא מקבל את הקישור */ }
+                    Intent g = getPackageManager().getLaunchIntentForPackage("com.google.android.gm");
+                    if (g != null) { startActivity(g); return true; }
+                }
                 if ("intent".equals(u.getScheme())) { // קישור לאפליקציה (Gmail / וואטסאפ): פותחים אותה; אין – הקישור הרגיל (18/11)
                     String fb = null;
                     try {
