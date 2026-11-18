@@ -14,8 +14,19 @@ import android.widget.TextView;
 final class Ui {
     private Ui() {}
 
-    static final int BG = Color.parseColor("#EEF2F7"), INK = Color.parseColor("#0F172A"), MUTED = Color.parseColor("#64748B"),
-            PRI = Color.parseColor("#2563EB"), OK = Color.parseColor("#16A34A"), WARN = Color.parseColor("#D97706"), SOFT = Color.parseColor("#F1F5F9");
+    static int BG = Color.parseColor("#EEF2F7"), INK = Color.parseColor("#0F172A"), MUTED = Color.parseColor("#64748B"),
+            SOFT = Color.parseColor("#F1F5F9"), CARD = Color.WHITE;
+    static final int PRI = Color.parseColor("#2563EB"), OK = Color.parseColor("#16A34A"), WARN = Color.parseColor("#D97706");
+
+    /** מצב לילה לפי הטלפון – אותם צבעים כמו בדשבורד (18/11) */
+    static void theme(Context c) {
+        boolean dark = (c.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        BG = Color.parseColor(dark ? "#0B1220" : "#EEF2F7");
+        INK = Color.parseColor(dark ? "#E2E8F0" : "#0F172A");
+        MUTED = Color.parseColor(dark ? "#94A3B8" : "#64748B");
+        SOFT = Color.parseColor(dark ? "#1E293B" : "#F1F5F9");
+        CARD = dark ? Color.parseColor("#131C2E") : Color.WHITE;
+    }
 
     static int dp(Context c, int v) { return (int) (v * c.getResources().getDisplayMetrics().density); }
 
@@ -54,7 +65,7 @@ final class Ui {
         LinearLayout k = new LinearLayout(c);
         k.setOrientation(LinearLayout.VERTICAL);
         k.setPadding(dp(c, 16), dp(c, 14), dp(c, 16), dp(c, 14));
-        k.setBackground(round(Color.WHITE, dp(c, 18)));
+        k.setBackground(round(CARD, dp(c, 18)));
         k.setElevation(dp(c, 2));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(dp(c, 14), dp(c, 12), dp(c, 14), 0);

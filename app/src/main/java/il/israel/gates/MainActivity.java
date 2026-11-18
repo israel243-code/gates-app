@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Ui.theme(this);
         take(getIntent());
         show();
         Updater.check(this, true); // פעם ביום: חלון רק אם יש גרסה חדשה
@@ -118,6 +119,21 @@ public class MainActivity extends Activity {
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+    private void showOffline() {
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.setBackgroundColor(Ui.BG);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        sv.addView(root);
+        root.addView(Ui.hero(this, "🚪 שערים", "אין חיבור לאינטרנט"));
+        LinearLayout k = Ui.card(this, root, "⚠️ אין חיבור");
+        Ui.note(this, k, "הדף לא נטען. בדוק קליטה או אינטרנט ונסה שוב. אם הרכב מחובר, השידור ברקע ממשיך לנסות לבד.");
+        Ui.button(this, k, "🔄 נסה שוב", true, v -> openWeb());
+        Ui.button(this, k, "⚙️ הגדרות: רכבים והרשאות", false, v -> startActivity(new Intent(this, SettingsActivity.class)));
+        setContentView(sv);
+    }
+
     private void openWeb() {
         web = new WebView(this);
         web.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -129,6 +145,10 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new Bridge(), "GatesApp");
         final String host = Uri.parse(Prefs.url(this)).getHost();
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedError(WebView v, WebResourceRequest r, android.webkit.WebResourceError e) {
+                if (r.isForMainFrame()) showOffline(); // בלי קליטה: מסך בעברית, בלי להציג את הקישור הסודי (18/11)
+            }
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();

@@ -36,7 +36,7 @@ public class SettingsActivity extends Activity {
     private TextView status;
     private final Handler h = new Handler(Looper.getMainLooper());
 
-    @Override protected void onCreate(Bundle b) { super.onCreate(b); getWindow().setStatusBarColor(Color.parseColor("#1E3A8A")); build(); }
+    @Override protected void onCreate(Bundle b) { super.onCreate(b); Ui.theme(this); getWindow().setStatusBarColor(Color.parseColor("#1E3A8A")); build(); }
     @Override protected void onResume() { super.onResume(); build(); }
     @Override protected void onPause() { super.onPause(); h.removeCallbacksAndMessages(null); }
     @Override public void onRequestPermissionsResult(int code, String[] p, int[] r) { build(); }
@@ -96,6 +96,7 @@ public class SettingsActivity extends Activity {
             Set<String> sel = Prefs.cars(this);
             List<BluetoothDevice> list = new ArrayList<>();
             try { if (ad != null) list.addAll(ad.getBondedDevices()); } catch (SecurityException e) { /* אין הרשאה */ }
+            list.sort((x, y) -> Boolean.compare(!sel.contains(x.getAddress()), !sel.contains(y.getAddress()))); // רכבים מסומנים ראשונים (18/11)
             if (list.isEmpty()) Ui.note(this, cars, "לא נמצאו מכשירי בלוטות'. צמד קודם את הטלפון לרכב.");
             for (BluetoothDevice d : list) {
                 CheckBox cb = new CheckBox(this);
