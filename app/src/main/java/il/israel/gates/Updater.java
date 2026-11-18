@@ -38,7 +38,9 @@ final class Updater {
     }
 
     /** עד ההשקה הרשמית: "1 (עדכון N)" */
-    static String currentName(Context c) { return "1 (עדכון " + current(c) + ")"; }
+    /** הספירה למשתמש התחילה מחדש ב-18/11: עדכון 1 = בנייה 12. המספר הפנימי (versionCode) ממשיך לעלות – אנדרואיד לא מתקין מספר נמוך יותר */
+    static final int BASE = 11;
+    static String currentName(Context c) { return "1 (עדכון " + Math.max(1, current(c) - BASE) + ")"; }
 
     /**
      * הורדה בתוך האפליקציה (DownloadManager) ופתיחת מסך ההתקנה של אנדרואיד – בלי דפדפן (17/11: העדכון דרך הדפדפן לא עבד טוב).
@@ -97,8 +99,8 @@ final class Updater {
                 try (InputStream in = c.getInputStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) {
                     JSONObject j = new JSONObject(s.hasNext() ? s.next() : "{}");
                     String name = j.optString("name", "");
-                    Matcher m = Pattern.compile("עדכון (\\d+)").matcher(name);
-                    if (!m.find()) { m = Pattern.compile("1\\.(\\d+)").matcher(name); if (!m.find()) m = null; }
+                    Matcher m = Pattern.compile("b1\\.(\\d+)").matcher(name); // המספר הפנימי; "עדכון #N" רק לתצוגה
+                    if (!m.find()) { m = Pattern.compile("עדכון (\\d+)").matcher(name); if (!m.find()) m = null; }
                     if (m != null) latest = Integer.parseInt(m.group(1));
                     notes = j.optString("body", "");
                 }
@@ -113,7 +115,7 @@ final class Updater {
                 if (lv > current(a)) {
                     new AlertDialog.Builder(a)
                             .setTitle("🆕 יש עדכון חדש לאפליקציה")
-                            .setMessage("הגרסה שלך: " + currentName(a) + " · העדכון החדש: " + lv + "\n" + (nt.isEmpty() || nt.equals("בנייה אוטומטית") ? "" : nt + "\n")
+                            .setMessage("הגרסה שלך: " + currentName(a) + " · העדכון החדש: עדכון " + Math.max(1, lv - BASE) + "\n" + (nt.isEmpty() || nt.equals("בנייה אוטומטית") ? "" : nt + "\n")
                                     + "\nההורדה נעשית בתוך האפליקציה, ובסוף נפתח מסך ההתקנה – לוחצים \"עדכן\". ההגדרות שלך נשמרות.")
                             .setPositiveButton("⬇️ עדכן עכשיו", (d, w) -> install(a))
                             .setNegativeButton("אחר כך", null)
