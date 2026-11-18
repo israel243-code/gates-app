@@ -64,6 +64,8 @@
             <intent-filter>
                 <action android:name="androidx.car.app.CarAppService" />
                 <category android:name="androidx.car.app.category.IOT" />
+                <!-- 18/11: "שערים" לא הופיעה באנדרואיד אוטו עם IOT בלבד (מחוץ ל-Play) – גם קטגוריית "מקומות" -->
+                <category android:name="androidx.car.app.category.POI" />
             </intent-filter>
         </service>
     </application>
