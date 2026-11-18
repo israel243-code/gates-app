@@ -60,7 +60,12 @@
         <!-- אנדרואיד אוטו: מסך שערים ברכב (קטגוריית מכשירים חכמים) -->
         <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
         <meta-data android:name="androidx.car.app.minCarApiLevel" android:value="1" />
-        <!-- 18/11 ניסיון לבקשת הבעלים: בלי שירות המדיה (GatesMediaService נשאר בקוד, לא רשום) – רק אפליקציית רכב רגילה -->
+        <!-- אנדרואיד אוטו כאפליקציית מדיה (18/11): רק כך היא מוצגת כשהיא לא מחנות Play (נוסה בלי – לא מופיעה) -->
+        <service android:name=".GatesMediaService" android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
         <service android:name=".GatesCarService" android:exported="true">
             <intent-filter>
                 <action android:name="androidx.car.app.CarAppService" />
