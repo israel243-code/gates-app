@@ -43,6 +43,8 @@ public class SettingsActivity extends Activity {
 
     private boolean has(String p) { return checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED; }
 
+    @Override public void finish() { super.finish(); overridePendingTransition(android.R.anim.fade_in, android.R.anim.slide_out_right); } // יציאה רכה
+
     private void build() {
         ScrollView sv = new ScrollView(this);
         sv.setBackgroundColor(Ui.BG);
@@ -52,7 +54,12 @@ public class SettingsActivity extends Activity {
         root.setPadding(0, 0, 0, Ui.dp(this, 28));
         sv.addView(root);
 
-        root.addView(Ui.hero(this, "⚙️ הגדרות", "השערים נפתחים לבד כשמתקרבים – רק כשאתה ברכב"));
+        LinearLayout hero = Ui.hero(this, "⚙️ הגדרות", "השערים נפתחים לבד כשמתקרבים – רק כשאתה ברכב");
+        TextView back = Ui.text(this, "→ חזרה", 16, Color.WHITE, true); // חזרה נעימה למעלה, לא רק "סיום" בתחתית (18/11)
+        back.setPadding(0, 0, 0, Ui.dp(this, 12));
+        back.setOnClickListener(v -> finish());
+        hero.addView(back, 0);
+        root.addView(hero);
 
         // --- 1. הרשאות ---
         boolean fine = has(Manifest.permission.ACCESS_FINE_LOCATION);
@@ -116,7 +123,8 @@ public class SettingsActivity extends Activity {
             }
         }
 
-        // --- פרטיות (ניסיוני) – תשתית לאפשרות ג' ---
+        // --- פרטיות (ניסיוני) – תשתית לאפשרות ג'. רק במצב מנהל (הבעלים, 18/11) ---
+        if (!Prefs.isDash(Prefs.admin(this))) { if (Prefs.local(this)) Prefs.setLocal(this, false); } else {
         LinearLayout priv = Ui.card(this, root, "🔒 חישוב בטלפון (ניסיוני)");
         Switch loc = new Switch(this);
         loc.setText("המיקום לא נשלח לשרת – הטלפון מחליט לבד מתי לפתוח");
@@ -126,6 +134,7 @@ public class SettingsActivity extends Activity {
         loc.setOnCheckedChangeListener((v, on) -> Prefs.setLocal(this, on));
         priv.addView(loc);
         Ui.note(this, priv, "אותם כללים: בתוך המרחק, מתקרבים, וזמן בין פתיחות. לשרת נשלחת רק בקשה \"לפתוח את השער\". המיקום שלך לא יופיע במפה של אף אחד.");
+        }
 
         // --- 3. שידור ידני ---
         LinearLayout man = Ui.card(this, root, "📡 שידור עכשיו");
