@@ -31,6 +31,8 @@ import android.widget.Toast;
  */
 public class MainActivity extends Activity {
     private WebView web;
+    private GeolocationPermissions.Callback geoCb; // מחכים לתשובת המשתמש להרשאת המיקום (18/11)
+    private String geoOrigin;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -140,9 +142,9 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
-                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-                    requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 7);
-                cb.invoke(origin, true, false);
+                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) { cb.invoke(origin, true, false); return; }
+                geoCb = cb; geoOrigin = origin;
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 7);
             }
         });
         web.setBackgroundColor(Color.parseColor("#EEF2F7"));
@@ -173,5 +175,14 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.evaluateJavascript("window.appRefresh && appRefresh()", null);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(code, perms, res);
+        if (code == 7 && geoCb != null) {
+            geoCb.invoke(geoOrigin, res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED, false);
+            geoCb = null;
+        }
     }
 }

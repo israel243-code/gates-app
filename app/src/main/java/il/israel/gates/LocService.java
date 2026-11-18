@@ -63,7 +63,13 @@ public class LocService extends Service implements LocationListener {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(new NotificationChannel(CH, "שידור מיקום לשערים", NotificationManager.IMPORTANCE_LOW));
         Notification n = notif("📡 משדר מיקום" + (why.isEmpty() ? "" : " · " + why));
-        if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION); else startForeground(1, n);
+        try { // אנדרואיד 14: בלי הרשאת מיקום מתאימה startForeground זורק – עוצרים במקום לקרוס (18/11)
+            if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION); else startForeground(1, n);
+        } catch (Exception e) {
+            state = "חסרה הרשאת מיקום";
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         if (!running) {
             h = new Handler(Looper.getMainLooper());
             lm = getSystemService(LocationManager.class);

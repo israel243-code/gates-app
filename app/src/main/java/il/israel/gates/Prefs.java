@@ -27,11 +27,19 @@ final class Prefs {
     static void setAuto(Context c, boolean b) { p(c).edit().putBoolean("auto", b).apply(); }
 
     /** קישור אורח תקין: https://<שרת>/gate/<מפתח>?t=<טוקן> */
+    /** רק השרת של ישראל – קישור לשרת אחר לא נשמר באפליקציה (בדיקת קוד, 18/11) */
+    static boolean allowedHost(Uri u) {
+        String h = u == null ? null : u.getHost();
+        if (h == null) return false;
+        h = h.toLowerCase();
+        return h.equals("isrnb.duckdns.org") || h.equals("89-167-17-60.sslip.io");
+    }
+
     static boolean valid(String s) {
         if (s == null) return false;
         Uri u = Uri.parse(s.trim());
         String t = u.getQueryParameter("t");
-        return "https".equals(u.getScheme()) && u.getPath() != null && u.getPath().matches("/gate/[A-Za-z0-9_-]{20,64}/?")
+        return "https".equals(u.getScheme()) && allowedHost(u) && u.getPath() != null && u.getPath().matches("/gate/[A-Za-z0-9_-]{20,64}/?")
                 && t != null && t.matches("[A-Za-z0-9_-]{20,40}");
     }
 
@@ -39,7 +47,7 @@ final class Prefs {
     static boolean isShort(String s) {
         if (s == null) return false;
         Uri u = Uri.parse(s.trim());
-        return "https".equals(u.getScheme()) && u.getPath() != null && u.getPath().matches("/g/[A-Za-z0-9]{5,12}/?");
+        return "https".equals(u.getScheme()) && allowedHost(u) && u.getPath() != null && u.getPath().matches("/g/[A-Za-z0-9]{5,12}/?");
     }
 
     /** קישור קצר → הקישור המלא (בקשה לשרת בלי לעקוב אחרי ההפניה). רק מחוץ ל-UI thread. null אם לא תקין / פג. */
