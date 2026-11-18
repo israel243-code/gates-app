@@ -171,6 +171,20 @@ public class MainActivity extends Activity {
                 // באפליקציה נשארים רק דפי השערים; כניסה עם גוגל (גוגל חוסמת בתוך אפליקציות), וואטסאפ, OwnTracks וכו' – בחוץ
                 boolean inside = "https".equals(u.getScheme()) && host != null && host.equals(u.getHost()) && !u.getPath().endsWith("/google");
                 if (inside) return false;
+                if ("intent".equals(u.getScheme())) { // קישור לאפליקציה (Gmail / וואטסאפ): פותחים אותה; אין – הקישור הרגיל (18/11)
+                    String fb = null;
+                    try {
+                        Intent in = Intent.parseUri(u.toString(), Intent.URI_INTENT_SCHEME);
+                        fb = in.getStringExtra("browser_fallback_url");
+                        if ("com.google.android.gm".equals(in.getPackage()) && fb != null) in = new Intent(Intent.ACTION_VIEW, Uri.parse(fb)).setPackage("com.google.android.gm"); // Gmail: הקישור המלא – פותח את המייל עצמו
+                        in.addCategory(Intent.CATEGORY_BROWSABLE); in.setComponent(null); in.setSelector(null);
+                        startActivity(in); return true;
+                    } catch (Exception e) {
+                        if (fb != null) try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(fb))); return true; } catch (Exception e2) { /* אין */ }
+                    }
+                    Toast.makeText(MainActivity.this, "אין אפליקציה שפותחת את זה", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception e) { Toast.makeText(MainActivity.this, "אין אפליקציה שפותחת את זה", Toast.LENGTH_SHORT).show(); }
                 return true;
             }
