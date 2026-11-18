@@ -58,7 +58,12 @@ final class LocalEngine {
     /** @return "open" אם נשלחה פקודת פתיחה, "expired" אם הקישור פג, אחרת "ok" */
     String onFix(double lat, double lon) throws Exception {
         long now = System.currentTimeMillis();
-        if (st == null || now - stAt > 10 * 60000) { // ההגדרות מתעדכנות מהשרת כל 10 דקות; אם אין חיבור – ממשיכים עם השמורות בטלפון
+        // נתוני השערים נשמרים בטלפון לתמיד (הבעלים, 18/11: "השערים לא זזים כל יום"). מתעדכנים מהשרת רק כשצריך:
+        // אין עדיין נתונים / המשתמש שינה הגדרה בדף השערים (stDirty) / עדכון גרסה של האפליקציה
+        android.content.SharedPreferences sp = c.getSharedPreferences("gates", Context.MODE_PRIVATE);
+        int ver = 0; try { ver = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionCode; } catch (Exception e) { /* לא ידוע */ }
+        boolean need = st == null || sp.getBoolean("stDirty", false) || sp.getInt("stVer", -1) != ver;
+        if (need && now - stAt > 30000) { // לא יותר מניסיון אחד בחצי דקה
             String u = url("st");
             if (u == null) { state = "אין קישור אישי באפליקציה"; log(state); return "ok"; }
             try {
@@ -68,7 +73,7 @@ final class LocalEngine {
                 String body;
                 try (InputStream in = h.getInputStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { body = s.hasNext() ? s.next() : "{}"; }
                 st = new JSONObject(body);
-                c.getSharedPreferences("gates", Context.MODE_PRIVATE).edit().putString("stCache", body).apply();
+                sp.edit().putString("stCache", body).putBoolean("stDirty", false).putInt("stVer", ver).apply();
                 JSONArray o = st.optJSONArray("on");
                 log("נתוני שערים עודכנו מהשרת: " + (o == null ? 0 : o.length()) + " שערים לפתיחה אוטומטית");
             } catch (Exception e) { log("אין חיבור לשרת – משתמש בנתונים השמורים"); if (st == null) { state = "אין נתוני שערים עדיין"; return "ok"; } }
@@ -110,7 +115,7 @@ final class LocalEngine {
             } catch (Exception e) { lastOpen.put(g, now - (long) (gap * 60000) + 30000); state = "אין אינטרנט"; log("⚠️ אין אינטרנט – ניסיון חוזר בעוד חצי דקה"); continue; } // ניסיון חוזר אחרי חצי דקה
             JSONObject r = new JSONObject(body.isEmpty() ? "{}" : body);
             if (code == 403 && "expired".equals(r.optString("r"))) return "expired";
-            if (code == 403) { state = r.optString("r", "אין הרשאה לפתוח"); lastOpen.put(g, now - (long) (gap * 60000) + 60000); continue; }
+            if (code == 403) { sp.edit().putBoolean("stDirty", true).apply(); state = r.optString("r", "אין הרשאה לפתוח"); lastOpen.put(g, now - (long) (gap * 60000) + 60000); continue; }
             log((r.optBoolean("ok") ? "✅ " : "⚠️ ") + r.optString("r", "code " + code));
             if (!r.optBoolean("ok")) lastOpen.put(g, now - (long) (gap * 60000) + 30000); // לא נפתח – ניסיון חוזר אחרי חצי דקה
             else { result = "open"; state = "🚪 נפתח: " + g; }

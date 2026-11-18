@@ -133,6 +133,7 @@ public class SettingsActivity extends Activity {
         loc.setChecked(Prefs.local(this));
         loc.setOnCheckedChangeListener((v, on) -> Prefs.setLocal(this, on));
         priv.addView(loc);
+        Ui.button(this, priv, "🔄 עדכן עכשיו את נתוני השערים", false, v -> { getSharedPreferences("gates", MODE_PRIVATE).edit().putBoolean("stDirty", true).apply(); android.widget.Toast.makeText(this, "יתעדכן בתחילת השידור הבא", android.widget.Toast.LENGTH_SHORT).show(); });
         // 📋 יומן החישוב בטלפון – מה הטלפון ראה והחליט (18/11)
         StringBuilder lg = new StringBuilder();
         synchronized (LocalEngine.LOG) { for (int i = 0; i < Math.min(15, LocalEngine.LOG.size()); i++) lg.append(LocalEngine.LOG.get(i)).append('\n'); }
