@@ -30,7 +30,18 @@ final class LocalEngine {
     private final Map<String, Long> lastOpen = new HashMap<>();
     String state = "";
 
-    LocalEngine(Context c) { this.c = c; }
+    // יומן קצר בטלפון (18/11: "למה הניסיוני לא עבד?") – מוצג בהגדרות; בלי מיקומים, רק מרחקים והחלטות
+    static final java.util.ArrayList<String> LOG = new java.util.ArrayList<>();
+    static void log(String s) {
+        String t = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
+        synchronized (LOG) { LOG.add(0, t + "  " + s); while (LOG.size() > 40) LOG.remove(LOG.size() - 1); }
+    }
+
+    LocalEngine(Context c) {
+        this.c = c;
+        // נתוני השערים נשמרים בטלפון – עובד גם כשהשרת / האינטרנט לא זמינים לרגע (רק הפתיחה עצמה צריכה את השרת)
+        try { String j = c.getSharedPreferences("gates", Context.MODE_PRIVATE).getString("stCache", ""); if (!j.isEmpty()) { st = new JSONObject(j); log("נתוני שערים מהטלפון (שמורים)"); } } catch (Exception e) { /* אין */ }
+    }
 
     private String url(String sub) {
         String s = Prefs.url(c);
@@ -47,16 +58,25 @@ final class LocalEngine {
     /** @return "open" אם נשלחה פקודת פתיחה, "expired" אם הקישור פג, אחרת "ok" */
     String onFix(double lat, double lon) throws Exception {
         long now = System.currentTimeMillis();
-        if (st == null || now - stAt > 10 * 60000) { // ההגדרות מתעדכנות כל 10 דקות
-            HttpURLConnection h = (HttpURLConnection) new URL(url("st")).openConnection();
-            h.setConnectTimeout(8000); h.setReadTimeout(8000); h.setRequestProperty("User-Agent", "GatesApp/1");
-            if (h.getResponseCode() == 403) return "expired";
-            try (InputStream in = h.getInputStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { st = new JSONObject(s.hasNext() ? s.next() : "{}"); }
+        if (st == null || now - stAt > 10 * 60000) { // ההגדרות מתעדכנות מהשרת כל 10 דקות; אם אין חיבור – ממשיכים עם השמורות בטלפון
+            String u = url("st");
+            if (u == null) { state = "אין קישור אישי באפליקציה"; log(state); return "ok"; }
+            try {
+                HttpURLConnection h = (HttpURLConnection) new URL(u).openConnection();
+                h.setConnectTimeout(8000); h.setReadTimeout(8000); h.setRequestProperty("User-Agent", "GatesApp/1"); h.setRequestProperty("X-Gates-Local", "1");
+                if (h.getResponseCode() == 403) { log("הקישור פג"); return "expired"; }
+                String body;
+                try (InputStream in = h.getInputStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { body = s.hasNext() ? s.next() : "{}"; }
+                st = new JSONObject(body);
+                c.getSharedPreferences("gates", Context.MODE_PRIVATE).edit().putString("stCache", body).apply();
+                JSONArray o = st.optJSONArray("on");
+                log("נתוני שערים עודכנו מהשרת: " + (o == null ? 0 : o.length()) + " שערים לפתיחה אוטומטית");
+            } catch (Exception e) { log("אין חיבור לשרת – משתמש בנתונים השמורים"); if (st == null) { state = "אין נתוני שערים עדיין"; return "ok"; } }
             stAt = now;
         }
         JSONArray on = st.optJSONArray("on");
         JSONObject defs = st.optJSONObject("defs"), cfg = st.optJSONObject("cfg");
-        if (on == null || defs == null) return "ok";
+        if (on == null || defs == null) { log("אין שערים לפתיחה אוטומטית"); return "ok"; }
         boolean fresh = now - prevAt < 60000;
         Map<String, Double> cur = new HashMap<>();
         String result = "ok";
@@ -72,10 +92,12 @@ final class LocalEngine {
             double dist = meters(lat, lon, glat, glon);
             cur.put(g, dist);
             Double was = fresh ? prev.get(g) : null;
+            if (dist < 1500 && (was == null || Math.abs(was - dist) > 15)) log(g + ": " + Math.round(dist) + " מ׳" + (dist <= radius ? " (בתוך " + Math.round(radius) + ")" : ""));
             if (dist > radius || was == null || dist > was - 3) continue;                 // מחוץ לרדיוס / לא מתקרבים
             Long lo = lastOpen.get(g);
             if (lo != null && now - lo < gap * 60000) continue;                           // נפתח לאחרונה
             lastOpen.put(g, now);
+            log("➡️ שולח פתיחה: " + g + " (" + Math.round(dist) + " מ׳)");
             int code; String body = "";
             try {
                 HttpURLConnection h = (HttpURLConnection) new URL(url("open")).openConnection();
@@ -85,10 +107,11 @@ final class LocalEngine {
                 code = h.getResponseCode();
                 try (InputStream in = code < 400 ? h.getInputStream() : h.getErrorStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { if (s.hasNext()) body = s.next(); }
                 catch (Exception e) { /* בלי גוף */ }
-            } catch (Exception e) { lastOpen.put(g, now - (long) (gap * 60000) + 30000); state = "אין אינטרנט"; continue; } // ניסיון חוזר אחרי חצי דקה
+            } catch (Exception e) { lastOpen.put(g, now - (long) (gap * 60000) + 30000); state = "אין אינטרנט"; log("⚠️ אין אינטרנט – ניסיון חוזר בעוד חצי דקה"); continue; } // ניסיון חוזר אחרי חצי דקה
             JSONObject r = new JSONObject(body.isEmpty() ? "{}" : body);
             if (code == 403 && "expired".equals(r.optString("r"))) return "expired";
             if (code == 403) { state = r.optString("r", "אין הרשאה לפתוח"); lastOpen.put(g, now - (long) (gap * 60000) + 60000); continue; }
+            log((r.optBoolean("ok") ? "✅ " : "⚠️ ") + r.optString("r", "code " + code));
             if (!r.optBoolean("ok")) lastOpen.put(g, now - (long) (gap * 60000) + 30000); // לא נפתח – ניסיון חוזר אחרי חצי דקה
             else { result = "open"; state = "🚪 נפתח: " + g; }
         }

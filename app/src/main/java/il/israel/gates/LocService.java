@@ -55,6 +55,7 @@ public class LocService extends Service implements LocationListener {
 
     @Override
     public int onStartCommand(Intent i, int flags, int id) {
+        if (i != null && Prefs.local(this)) LocalEngine.log("▶️ השידור התחיל (" + (i.getStringExtra("why") == null ? "" : i.getStringExtra("why")) + ") – חישוב בטלפון");
         // הפעלה מחדש של המערכת אחרי שהאפליקציה נסגרה (בלי בקשה): לא משדרים בלי הגבלה – עוצרים (בדיקת קוד, 17/11)
         if (i == null) { stopSelf(); return START_NOT_STICKY; }
         why = i.getStringExtra("why") != null ? i.getStringExtra("why") : "";
@@ -115,7 +116,7 @@ public class LocService extends Service implements LocationListener {
         long now = System.currentTimeMillis();
         if (now - lastSent < 2500) return;
         lastSent = now;
-        if (l.hasAccuracy() && l.getAccuracy() > 80) { state = "GPS חלש"; return; }
+        if (l.hasAccuracy() && l.getAccuracy() > 80) { state = "GPS חלש"; if (Prefs.local(this)) LocalEngine.log("GPS חלש (" + Math.round(l.getAccuracy()) + " מ׳) – מחכה"); return; }
         if (Prefs.local(this)) { // חישוב בטלפון: המיקום לא יוצא מהטלפון
             if (engine == null) engine = new LocalEngine(this);
             final double la = l.getLatitude(), lo = l.getLongitude();
@@ -125,7 +126,7 @@ public class LocService extends Service implements LocationListener {
                     state = engine.state.isEmpty() ? "משדר (חישוב בטלפון)" : engine.state;
                     if ("expired".equals(r)) h.post(() -> { show("⌛ הקישור פג – בקש קישור חדש"); stopSelf(); });
                     else if ("open".equals(r)) h.post(() -> show(engine.state));
-                } catch (Exception e) { state = "אין אינטרנט"; }
+                } catch (Exception e) { state = "שגיאה"; LocalEngine.log("שגיאה: " + e.getClass().getSimpleName() + " " + String.valueOf(e.getMessage())); }
             });
             return;
         }
