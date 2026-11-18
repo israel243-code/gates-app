@@ -39,3 +39,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+// אנדרואיד אוטו (18/11, באישור הבעלים): הספרייה הרשמית של גוגל לאפליקציות רכב
+dependencies {
+    implementation 'androidx.car.app:app:1.4.0'
+}

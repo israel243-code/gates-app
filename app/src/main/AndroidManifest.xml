@@ -57,5 +57,14 @@
         </receiver>
 
         <receiver android:name=".StopReceiver" android:exported="false" />
+        <!-- אנדרואיד אוטו: מסך שערים ברכב (קטגוריית מכשירים חכמים) -->
+        <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
+        <meta-data android:name="androidx.car.app.minCarApiLevel" android:value="1" />
+        <service android:name=".GatesCarService" android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.IOT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>
