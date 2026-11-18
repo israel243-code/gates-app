@@ -233,6 +233,8 @@ public class MainActivity extends Activity {
             });
         }
         /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
+        /** 📤 "שלח עכשיו לבדיקה" בדשבורד: היומן שעוד לא נשלח – לשרת מיד */
+        @JavascriptInterface public void uploadLog() { LocalEngine.log("📤 נשלח לבדיקה מהדשבורד"); final android.content.Context x = getApplicationContext(); new Thread(() -> LocalEngine.upload(x)).start(); }
         @JavascriptInterface public void peekUpdate() { Updater.peek(); }
         @JavascriptInterface public String updateAvail() { int k = Updater.known; return k > Updater.current(MainActivity.this) ? "עדכון " + Math.max(1, k - Updater.BASE) : ""; }
         @JavascriptInterface public void installUpdate() { runOnUiThread(() -> Updater.install(MainActivity.this)); }

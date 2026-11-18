@@ -137,6 +137,7 @@ public class SettingsActivity extends Activity {
         // 📋 יומן החישוב בטלפון – מה הטלפון ראה והחליט (18/11)
         StringBuilder lg = new StringBuilder();
         synchronized (LocalEngine.LOG) { for (int i = 0; i < Math.min(15, LocalEngine.LOG.size()); i++) lg.append(LocalEngine.LOG.get(i)).append('\n'); }
+        Ui.note(this, priv, "📋 היומן המלא, וכפתור \"שלח עכשיו לבדיקה\": בדשבורד ← 🛠️ ניהול ← 📱 יומן הטלפון.");
         Ui.note(this, priv, "📋 מה קרה לאחרונה (" + (LocService.running ? "משדר עכשיו: " + LocService.state : "לא משדר עכשיו") + "):\n" + (lg.length() == 0 ? "עוד אין רישומים – יופיעו בנסיעה הבאה." : lg.toString().trim()));
         Ui.note(this, priv, "אותם כללים: בתוך המרחק, מתקרבים, וזמן בין פתיחות. לשרת נשלחת רק בקשה \"לפתוח את השער\". המיקום שלך לא יופיע במפה של אף אחד.");
         }
