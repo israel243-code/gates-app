@@ -55,6 +55,18 @@ final class LocalEngine {
         return Math.sqrt(x * x + y * y) * 6371000;
     }
 
+    /** נקודה בתוך מצולע ([[lat,lon],...]) */
+    private static boolean inZone(double lat, double lon, JSONArray z) {
+        boolean c = false;
+        for (int i = 0, j = z.length() - 1; i < z.length(); j = i++) {
+            JSONArray a = z.optJSONArray(i), b = z.optJSONArray(j);
+            if (a == null || b == null) return false;
+            double yi = a.optDouble(0), xi = a.optDouble(1), yj = b.optDouble(0), xj = b.optDouble(1);
+            if ((yi > lat) != (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) c = !c;
+        }
+        return c;
+    }
+
     /** @return "open" אם נשלחה פקודת פתיחה, "expired" אם הקישור פג, אחרת "ok" */
     String onFix(double lat, double lon) throws Exception {
         long now = System.currentTimeMillis();
@@ -98,7 +110,9 @@ final class LocalEngine {
             cur.put(g, dist);
             Double was = fresh ? prev.get(g) : null;
             if (dist < 1500 && (was == null || Math.abs(was - dist) > 15)) log(g + ": " + Math.round(dist) + " מ׳" + (dist <= radius ? " (בתוך " + Math.round(radius) + ")" : ""));
-            if (dist > radius || was == null || dist > was - 3) continue;                 // מחוץ לרדיוס / לא מתקרבים
+            JSONArray zone = my != null && my.optJSONArray("zone") != null ? my.optJSONArray("zone") : d.optJSONArray("zone"); // 📐 אזור במקום עיגול (18/11)
+            boolean outside = zone != null && zone.length() >= 3 ? !inZone(lat, lon, zone) : dist > radius;
+            if (outside || was == null || dist > was - 3) continue;                 // מחוץ לרדיוס / לאזור, או לא מתקרבים
             Long lo = lastOpen.get(g);
             if (lo != null && now - lo < gap * 60000) continue;                           // נפתח לאחרונה
             lastOpen.put(g, now);
