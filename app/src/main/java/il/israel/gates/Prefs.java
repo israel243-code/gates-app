@@ -94,6 +94,6 @@ final class Prefs {
         String s = url(c);
         if (!valid(s)) return null;
         Uri u = Uri.parse(s);
-        return u.getScheme() + "://" + u.getAuthority() + u.getPath().replaceAll("/+$", "") + "/loc?t=" + Uri.encode(u.getQueryParameter("t"));
+        return u.getScheme() + "://" + u.getAuthority() + u.getPath().replaceAll("/+$", "") + "/loc?t=" + Uri.encode(u.getQueryParameter("t")) + "&dev=" + (carScreen(c) ? "car" : "phone"); // 🚗 / 📱 השרת יודע מאיפה השידור (19/11)
     }
 }

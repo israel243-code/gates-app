@@ -157,7 +157,9 @@ public class LocService extends Service implements LocationListener {
                 } else {
                     String r = "";
                     try (InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { if (s.hasNext()) r = s.next(); }
-                    state = "משדר";
+                    boolean standby = r.contains("\"standby\"");
+                    if (standby && !"הרכב משדר – הטלפון בהמתנה".equals(state)) LocalEngine.log("🚗 הרכב משדר בעצמו – הטלפון בהמתנה");
+                    state = standby ? "הרכב משדר – הטלפון בהמתנה" : "משדר";
                     if (r.contains("\"open\"")) h.post(() -> show("🚪 נשלחה פקודת פתיחה"));
                     try { // 🔔 פתיחות של המשתמש הזה שהשרת דיווח עליהן – התראה פעם אחת לכל אחת
                         org.json.JSONArray ev = new org.json.JSONObject(r).optJSONArray("ev");
