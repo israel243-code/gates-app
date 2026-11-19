@@ -259,6 +259,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        CarCheck.run(this, "בפתיחת האפליקציה"); // רכב מחובר אבל לא משדר – מתחילים
         // נעילה בכל כניסה (אם נבחרה): אחרי דקה מחוץ לאפליקציה – שוב אימות
         if (web != null && Prefs.lock(this) == 2 && !authing && System.currentTimeMillis() - unlockedAt > 60000) {
             authing = true; web.setVisibility(View.INVISIBLE);
