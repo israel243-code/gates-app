@@ -37,7 +37,14 @@ final class LocalEngine {
     /** 📤 שליחת היומן לשרת – רק במצב מנהל (הבעלים, 18/11: "לחבר את 'מה קרה לאחרונה' לשרת, כרגע רק למנהל"). רץ על תהליכון הרשת. */
     static void upload(Context c) {
         if (!Prefs.isDash(Prefs.admin(c))) return;
-        String body; synchronized (LOG) { if (PENDING.isEmpty()) return; body = String.join("\n", PENDING); PENDING.clear(); }
+        init(c);
+        java.io.File f = new java.io.File(c.getFilesDir(), "pending.log");
+        String body;
+        synchronized (LOG) {
+            try { body = f.exists() ? new String(java.nio.file.Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8).trim() : String.join("\n", PENDING); } catch (Exception e) { body = String.join("\n", PENDING); }
+            if (body.isEmpty()) return;
+            PENDING.clear(); f.delete();
+        }
         String s = Prefs.url(c); if (!Prefs.valid(s)) return;
         Uri u = Uri.parse(s);
         String url = u.getScheme() + "://" + u.getAuthority() + u.getPath().replaceAll("/+$", "") + "/gcfg?t=" + Uri.encode(u.getQueryParameter("t"));
@@ -47,12 +54,15 @@ final class LocalEngine {
             h.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); h.setRequestProperty("User-Agent", "GatesApp/1");
             try (OutputStream o = h.getOutputStream()) { o.write(("applog=" + Uri.encode(body)).getBytes(StandardCharsets.UTF_8)); }
             h.getResponseCode();
-        } catch (Exception e) { synchronized (LOG) { PENDING.add(0, body); } } // בלי רשת – יישלח בפעם הבאה
+        } catch (Exception e) { synchronized (LOG) { try (java.io.FileWriter w = new java.io.FileWriter(f, true)) { w.write(body + "\n"); } catch (Exception e2) { /* אין */ } } } // בלי רשת – יישלח בפעם הבאה
     }
+    static Context app; // נקבע בהפעלה – כדי לשמור את היומן בקובץ גם כשהאפליקציה נסגרת (19/11: "אין רישום ביומן")
     static void log(String s) {
         String t = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
         synchronized (LOG) { LOG.add(0, t + "  " + s); while (LOG.size() > 40) LOG.remove(LOG.size() - 1); PENDING.add(t + "  " + s); while (PENDING.size() > 200) PENDING.remove(0); }
+        if (app != null) try (java.io.FileWriter w = new java.io.FileWriter(new java.io.File(app.getFilesDir(), "pending.log"), true)) { w.write(t + "  " + s + "\n"); } catch (Exception e) { /* בלי קובץ */ }
     }
+    static void init(Context c) { if (app == null) app = c.getApplicationContext(); }
 
     LocalEngine(Context c) {
         this.c = c;

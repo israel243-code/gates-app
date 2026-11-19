@@ -56,6 +56,7 @@ public class LocService extends Service implements LocationListener {
 
     @Override
     public int onStartCommand(Intent i, int flags, int id) {
+        LocalEngine.init(this);
         if (i != null) LocalEngine.log("▶️ השידור התחיל (" + (i.getStringExtra("why") == null ? "" : i.getStringExtra("why")) + ") – חישוב בטלפון");
         // הפעלה מחדש של המערכת אחרי שהאפליקציה נסגרה (בלי בקשה): לא משדרים בלי הגבלה – עוצרים (בדיקת קוד, 17/11)
         if (i == null) { stopSelf(); return START_NOT_STICKY; }

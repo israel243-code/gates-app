@@ -40,6 +40,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Ui.theme(this);
+        LocalEngine.init(this);
         take(getIntent());
         show();
         Updater.check(this, true); // פעם ביום: חלון רק אם יש גרסה חדשה
@@ -235,6 +236,9 @@ public class MainActivity extends Activity {
         /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
         /** 📤 "שלח עכשיו לבדיקה" בדשבורד: היומן שעוד לא נשלח – לשרת מיד */
         @JavascriptInterface public void uploadLog() { LocalEngine.log("📤 נשלח לבדיקה מהדשבורד"); final android.content.Context x = getApplicationContext(); new Thread(() -> LocalEngine.upload(x)).start(); }
+        /** מצב קצר לשורת המצב בראש הדף: האם משדר, למה לא, ומה קרה אחרון */
+        @JavascriptInterface public String lastLog() { synchronized (LocalEngine.LOG) { return LocalEngine.LOG.isEmpty() ? "" : LocalEngine.LOG.get(0); } }
+        @JavascriptInterface public boolean local() { return Prefs.local(MainActivity.this); }
         @JavascriptInterface public void peekUpdate() { Updater.peek(); }
         @JavascriptInterface public String updateAvail() { int k = Updater.known; return k > Updater.current(MainActivity.this) ? "עדכון " + Math.max(1, k - Updater.BASE) : ""; }
         @JavascriptInterface public void installUpdate() { runOnUiThread(() -> Updater.install(MainActivity.this)); }
