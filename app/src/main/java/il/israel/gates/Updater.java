@@ -68,8 +68,7 @@ final class Updater {
                     try { app.unregisterReceiver(this); } catch (Exception e) { /* כבר בוטל */ }
                     Uri u = dm.getUriForDownloadedFile(id);
                     if (u == null) { Toast.makeText(app, "ההורדה נכשלה. נסה שוב.", Toast.LENGTH_LONG).show(); return; }
-                    app.startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(u, "application/vnd.android.package-archive")
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK));
+                    if (!SilentInstall.start(app, u)) SilentInstall.open(app, u); // 19/11: קודם מתקין רשום (עדכון בלי אישור), ואם לא – הדרך הישנה
                 }
             };
             IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
