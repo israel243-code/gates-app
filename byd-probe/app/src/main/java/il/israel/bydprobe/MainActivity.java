@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView status, report;
-    private Button permBtn, runBtn, sendBtn;
+    private Button permBtn, runBtn, sendBtn, upd;
     private String last;
 
     @Override
@@ -85,7 +85,13 @@ public class MainActivity extends Activity {
         sv.addView(report);
         root.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1));
 
+        upd = btn("⬇️ יש גרסה חדשה – לחץ לעדכון", Color.rgb(124, 58, 237));
+        upd.setVisibility(View.GONE);
+        upd.setOnClickListener(v -> startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://isrnb.duckdns.org/car"))));
+        root.addView(upd, 2, new LinearLayout.LayoutParams(-1, dp(64)));
+
         setContentView(root);
+        checkUpdate();
         runBtn.setOnClickListener(v -> start());
         permBtn.setOnClickListener(v -> askPerms());
         sendBtn.setOnClickListener(v -> askCode());
@@ -156,6 +162,24 @@ public class MainActivity extends Activity {
 
     private static void write(File f, String s) throws Exception {
         try (FileOutputStream o = new FileOutputStream(f)) { o.write(s.getBytes(StandardCharsets.UTF_8)); }
+    }
+
+    // בדיקת עדכון: מספר הבנייה בכותרת השחרור ב-GitHub ("בנייה N") מול הגרסה המותקנת
+    private void checkUpdate() {
+        new Thread(() -> {
+            try {
+                HttpURLConnection h = (HttpURLConnection) new URL("https://api.github.com/repos/israel243-code/gates-app/releases/tags/byd-latest").openConnection();
+                h.setConnectTimeout(10000); h.setReadTimeout(10000);
+                InputStream is = h.getInputStream();
+                byte[] buf = new byte[8192]; int n; StringBuilder sb = new StringBuilder();
+                while ((n = is.read(buf)) > 0) sb.append(new String(buf, 0, n, StandardCharsets.UTF_8));
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("בנייה (\\d+)").matcher(sb);
+                if (!m.find()) return;
+                int latest = Integer.parseInt(m.group(1));
+                int mine = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                if (latest > mine) ui.post(() -> upd.setVisibility(View.VISIBLE));
+            } catch (Throwable ignored) {}
+        }).start();
     }
 
     // ---------- שליחה לשרת: קוד חד-פעמי מגיע לבעלים בוואטסאפ ----------
