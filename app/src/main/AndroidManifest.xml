@@ -39,6 +39,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="isrnb.duckdns.org" android:pathPrefix="/gate/" />
                 <data android:scheme="https" android:host="isrnb.duckdns.org" android:pathPrefix="/g/" />
+                <data android:scheme="https" android:host="isrnb.duckdns.org" android:pathPrefix="/pair" />
             </intent-filter>
         </activity>
 

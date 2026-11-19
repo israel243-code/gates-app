@@ -59,6 +59,7 @@ public class MainActivity extends Activity {
         if (Prefs.valid(d.toString())) { Prefs.setUrl(this, d.toString()); return true; }
         if (Prefs.isDash(d.toString())) { Prefs.setAdmin(this, d.toString()); Prefs.setAdminView(this, true); Toast.makeText(this, "🛡️ מצב מנהל הופעל", Toast.LENGTH_SHORT).show(); return true; }
         if (Prefs.isShort(d.toString())) { useLink(d.toString()); return false; }
+        if ("/pair".equals(d.getPath()) && d.getQueryParameter("c") != null) { approvePair(d.getQueryParameter("c")); return false; } // 🚗 ברקוד ממסך הרכב
         try { startActivity(new Intent(Intent.ACTION_VIEW, d).addCategory(Intent.CATEGORY_BROWSABLE).setPackage("com.android.chrome")); }
         catch (Exception e) { Toast.makeText(this, "זה לא קישור של שערים. פתח אותו בדפדפן.", Toast.LENGTH_LONG).show(); }
         return false;
@@ -98,7 +99,124 @@ public class MainActivity extends Activity {
 
     private int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density); }
 
-    private void onboarding() {
+    private void onboarding() { if (Prefs.isCarUnit() && !manualLogin) pairScreen(); else onboardingManual(); }
+    private boolean manualLogin = false;
+
+    // ---------- 🚗 כניסה במסך הרכב: ברקוד שסורקים עם הטלפון (19/11) ----------
+    private String pairId, pairSecret;
+
+    private void pairScreen() {
+        getWindow().setStatusBarColor(Color.parseColor("#1E3A8A"));
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.setBackgroundColor(Ui.BG);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        sv.addView(root);
+        root.addView(Ui.hero(this, "🚗 חיבור מסך הרכב", "סורקים את הברקוד עם הטלפון – וזהו"));
+        LinearLayout k = Ui.card(this, root, "📷 סרוק עם הטלפון");
+        android.widget.ImageView img = new android.widget.ImageView(this);
+        img.setAdjustViewBounds(true);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(300), dp(300));
+        ip.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+        k.addView(img, ip);
+        TextView st = new TextView(this);
+        st.setTextSize(17); st.setTextColor(Ui.INK); st.setGravity(android.view.Gravity.CENTER); st.setPadding(0, dp(10), 0, dp(6));
+        k.addView(st);
+        Ui.step(this, k, 1, false, "פותחים את המצלמה בטלפון ומכוונים לברקוד", null, null, null);
+        Ui.step(this, k, 2, false, "פותחים את הקישור באפליקציית \"שערים\"", "אם נפתח דפדפן – לוחצים שם \"פתח באפליקציית השערים\"", null, null);
+        Ui.step(this, k, 3, false, "לוחצים \"חבר\" בטלפון", "הרכב מתחבר לבד תוך כמה שניות", null, null);
+        Ui.button(this, k, "🔄 ברקוד חדש", false, v -> newPair(img, st));
+        LinearLayout k2 = Ui.card(this, root, "כניסה אחרת");
+        Ui.button(this, k2, "📱 עם מספר טלפון או קישור", false, v -> { manualLogin = true; pairId = null; onboardingManual(); });
+        setContentView(sv);
+        newPair(img, st);
+    }
+
+    private void newPair(android.widget.ImageView img, TextView st) {
+        st.setText("⏳ יוצר ברקוד…");
+        pairId = null;
+        new Thread(() -> {
+            String r = http("https://isrnb.duckdns.org/pair?step=new", "");
+            runOnUiThread(() -> {
+                try {
+                    org.json.JSONObject j = new org.json.JSONObject(r);
+                    if (!j.optBoolean("ok")) { st.setText("⚠️ " + j.optString("r", "נסה שוב")); return; }
+                    org.json.JSONArray q = j.getJSONArray("qr");
+                    int n = q.length(), pad = 4, sz = n + pad * 2;
+                    android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(sz, sz, android.graphics.Bitmap.Config.ARGB_8888);
+                    bm.eraseColor(Color.WHITE);
+                    for (int y = 0; y < n; y++) { String row = q.getString(y); for (int x = 0; x < n; x++) if (row.charAt(x) == '1') bm.setPixel(x + pad, y + pad, Color.BLACK); }
+                    android.graphics.Bitmap big = android.graphics.Bitmap.createScaledBitmap(bm, sz * 10, sz * 10, false);
+                    img.setImageBitmap(big);
+                    pairId = j.getString("id"); pairSecret = j.getString("secret");
+                    st.setText("מחכה לסריקה… (תקף ל-5 דקות)");
+                    pollPair(pairId, img, st);
+                } catch (Exception e) { st.setText("⚠️ אין חיבור לאינטרנט. לחץ \"ברקוד חדש\""); }
+            });
+        }).start();
+    }
+
+    private void pollPair(String id, android.widget.ImageView img, TextView st) {
+        new android.os.Handler(getMainLooper()).postDelayed(() -> {
+            if (!id.equals(pairId)) return; // ברקוד חדש / יצאנו מהמסך
+            new Thread(() -> {
+                String r = http("https://isrnb.duckdns.org/pair?step=poll", "id=" + id + "&s=" + pairSecret);
+                runOnUiThread(() -> {
+                    if (!id.equals(pairId)) return;
+                    try {
+                        org.json.JSONObject j = new org.json.JSONObject(r);
+                        String s = j.optString("state");
+                        if ("ok".equals(s) && Prefs.valid(j.optString("link"))) {
+                            pairId = null;
+                            Prefs.setUrl(this, j.getString("link"));
+                            Toast.makeText(this, "✅ מסך הרכב מחובר", Toast.LENGTH_LONG).show();
+                            show();
+                            CarCheck.run(this, "אחרי חיבור בברקוד");
+                            return;
+                        }
+                        if ("expired".equals(s)) { st.setText("⌛ הברקוד פג. לחץ \"ברקוד חדש\""); img.setAlpha(0.25f); pairId = null; return; }
+                    } catch (Exception e) { /* תקלה רגעית – ממשיכים */ }
+                    pollPair(id, img, st);
+                });
+            }).start();
+        }, 2000);
+    }
+
+    /** בטלפון: נסרק ברקוד ממסך הרכב → אישור → הרכב מקבל את הקישור האישי */
+    private void approvePair(String c) {
+        String u = Prefs.url(this);
+        if (!Prefs.valid(u)) { Toast.makeText(this, "קודם צריך להתחבר לשערים בטלפון הזה", Toast.LENGTH_LONG).show(); return; }
+        String t = Uri.parse(u).getQueryParameter("t");
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("🚗 לחבר את מסך הרכב?")
+                .setMessage("מסך הרכב יקבל את החשבון שלך ואת השערים שלך, ויפתח אותם לבד כשהרכב מתקרב.")
+                .setPositiveButton("✅ חבר", (d, w) -> new Thread(() -> {
+                    String r = http("https://isrnb.duckdns.org/pair?step=approve", "id=" + Uri.encode(c) + "&t=" + Uri.encode(t == null ? "" : t));
+                    String msg = "⚠️ אין חיבור לאינטרנט";
+                    try { msg = new org.json.JSONObject(r).optString("r", msg); } catch (Exception e) { /* נשאר */ }
+                    final String m = msg;
+                    runOnUiThread(() -> Toast.makeText(this, m, Toast.LENGTH_LONG).show());
+                }).start())
+                .setNegativeButton("ביטול", null)
+                .show();
+    }
+
+    private static String http(String url, String body) {
+        try {
+            java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            h.setRequestMethod("POST"); h.setDoOutput(true); h.setConnectTimeout(12000); h.setReadTimeout(15000);
+            h.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            byte[] b = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            try (java.io.OutputStream o = h.getOutputStream()) { o.write(b); }
+            java.io.InputStream is = h.getResponseCode() < 400 ? h.getInputStream() : h.getErrorStream();
+            java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream(); byte[] buf = new byte[4096]; int n;
+            while ((n = is.read(buf)) > 0) bo.write(buf, 0, n);
+            return bo.toString("UTF-8");
+        } catch (Exception e) { return ""; }
+    }
+
+    private void onboardingManual() {
         getWindow().setStatusBarColor(Color.parseColor("#1E3A8A"));
         android.widget.ScrollView sv = new android.widget.ScrollView(this);
         sv.setBackgroundColor(Ui.BG);
