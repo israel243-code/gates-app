@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView status, report;
-    private Button runBtn, sendBtn;
+    private Button permBtn, runBtn, sendBtn;
     private String last;
 
     @Override
@@ -61,9 +61,12 @@ public class MainActivity extends Activity {
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
+        permBtn = btn("🔑 אשר הרשאות", Color.rgb(217, 119, 6));
         runBtn = btn("▶ הרץ בדיקה", Color.rgb(37, 99, 235));
         sendBtn = btn("📤 שלח לשרת", Color.rgb(22, 163, 74));
         sendBtn.setEnabled(false); sendBtn.setAlpha(0.4f);
+        row.addView(permBtn, new LinearLayout.LayoutParams(0, dp(72), 1));
+        View gap0 = new View(this); row.addView(gap0, new LinearLayout.LayoutParams(dp(16), 1));
         row.addView(runBtn, new LinearLayout.LayoutParams(0, dp(72), 1));
         View gap = new View(this); row.addView(gap, new LinearLayout.LayoutParams(dp(16), 1));
         row.addView(sendBtn, new LinearLayout.LayoutParams(0, dp(72), 1));
@@ -71,7 +74,7 @@ public class MainActivity extends Activity {
 
         status = new TextView(this);
         status.setTextSize(18); status.setTextColor(Color.rgb(250, 204, 21)); status.setPadding(0, dp(12), 0, dp(8));
-        status.setText("לחץ \"הרץ בדיקה\". זה לוקח עד דקה.");
+        status.setText("1. לחץ \"אשר הרשאות\" ואשר את כל החלונות.  2. \"הרץ בדיקה\".  3. \"שלח לשרת\".");
         root.addView(status);
 
         ScrollView sv = new ScrollView(this);
@@ -84,10 +87,27 @@ public class MainActivity extends Activity {
 
         setContentView(root);
         runBtn.setOnClickListener(v -> start());
+        permBtn.setOnClickListener(v -> askPerms());
         sendBtn.setOnClickListener(v -> askCode());
 
-        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
-            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+    }
+
+    // כל ההרשאות שהאפליקציה מבקשת ועוד לא אושרו (כולל BYD וקבצים)
+    private void askPerms() {
+        try {
+            String[] all = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_PERMISSIONS).requestedPermissions;
+            java.util.List<String> need = new java.util.ArrayList<>();
+            for (String s : all) if (checkSelfPermission(s) != PackageManager.PERMISSION_GRANTED && !s.equals(Manifest.permission.INTERNET)) need.add(s);
+            if (need.isEmpty()) { status.setText("✅ כל ההרשאות כבר מאושרות. לחץ \"הרץ בדיקה\"."); return; }
+            requestPermissions(need.toArray(new String[0]), 2);
+        } catch (Throwable e) { status.setText("⚠️ " + e); }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+        int ok = 0;
+        for (int r : res) if (r == PackageManager.PERMISSION_GRANTED) ok++;
+        status.setText("🔑 אושרו " + ok + " מתוך " + res.length + " הרשאות. עכשיו לחץ \"הרץ בדיקה\".");
     }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
@@ -106,7 +126,7 @@ public class MainActivity extends Activity {
         runBtn.setEnabled(false); runBtn.setAlpha(0.4f);
         report.setText("");
         new Thread(() -> {
-            String r = new Probe(this, what -> say("⏳ בודק: " + what)).run();
+            String r = new Probe(this, what -> say("⏳ " + what)).runLive();
             last = r;
             String where = save(r);
             ui.post(() -> {

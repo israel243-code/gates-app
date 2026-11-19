@@ -48,6 +48,20 @@ public class Probe {
 
     public Probe(Context c, Progress p) { this.c = c; this.p = p; }
 
+    /** בדיקה 2 (קצרה): הרשאות + קריאה בפועל מהרכב + מצלמות */
+    public String runLive() {
+        line("בדיקת רכב 2 (קריאה בפועל) – " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
+        line("גרסת אפליקציה: " + ver());
+        section("א. ההרשאות של אפליקציית הבדיקה", this::mine);
+        section("ב. קריאה מהרכב (סוללה, טעינה, נעילה, 360 ועוד)", () -> LiveRead.run(c, out, p));
+        section("ג. מצלמות – פתיחה ותמונה אחת", () -> LiveRead.cameras(out, p));
+        section("ד. מצלמות (Camera2)", this::cameras);
+        line("\n=== סוף ===");
+        return out.toString();
+    }
+
+    private String ver() { try { return c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName; } catch (Throwable e) { return "?"; } }
+
     public String run() {
         line("בדיקת רכב – " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
         section("1. מערכת", this::system);
