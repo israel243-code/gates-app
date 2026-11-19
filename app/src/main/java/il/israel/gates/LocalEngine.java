@@ -158,6 +158,7 @@ final class LocalEngine {
             if (code == 403 && "expired".equals(r.optString("r"))) return "expired";
             if (code == 403) { sp.edit().putBoolean("stDirty", true).apply(); state = r.optString("r", "אין הרשאה לפתוח"); lastOpen.put(g, now - (long) (gap * 60000) + 60000); continue; }
             log((r.optBoolean("ok") ? "✅ " : "⚠️ ") + r.optString("r", "code " + code));
+            Notify.gate(c, g, r.optBoolean("ok"), r.optString("r", ""));
             if (!r.optBoolean("ok")) lastOpen.put(g, now - (long) (gap * 60000) + 30000); // לא נפתח – ניסיון חוזר אחרי חצי דקה
             else { result = "open"; state = "🚪 נפתח: " + g; }
         }

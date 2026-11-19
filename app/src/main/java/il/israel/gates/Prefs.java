@@ -32,6 +32,12 @@ final class Prefs {
                 && u.getPath() != null && u.getPath().matches("/gate/[A-Za-z0-9_-]{20,64}/?");
     }
 
+    /** הגדרות כן/לא כלליות (התראות וכו') */
+    static boolean flag(Context c, String k, boolean def) { return p(c).getBoolean(k, def); }
+    static void setFlag(Context c, String k, boolean v) { p(c).edit().putBoolean(k, v).apply(); }
+    static long lastEv(Context c) { return p(c).getLong("lastEv", 0); }
+    static void setLastEv(Context c, long v) { p(c).edit().putLong("lastEv", v).apply(); }
+
     static Set<String> cars(Context c) { return new HashSet<>(p(c).getStringSet("cars", new HashSet<>())); }
     static void setCars(Context c, Set<String> s) { p(c).edit().putStringSet("cars", new HashSet<>(s)).apply(); }
 

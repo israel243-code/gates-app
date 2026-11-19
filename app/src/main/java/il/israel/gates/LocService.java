@@ -57,6 +57,7 @@ public class LocService extends Service implements LocationListener {
     @Override
     public int onStartCommand(Intent i, int flags, int id) {
         LocalEngine.init(this);
+        if (i != null && !running) Notify.service(this, "📡 השידור התחיל" + (i.getStringExtra("why") == null ? "" : " · " + i.getStringExtra("why")));
         if (i != null) LocalEngine.log("▶️ השידור התחיל (" + (i.getStringExtra("why") == null ? "" : i.getStringExtra("why")) + ") – חישוב בטלפון");
         // הפעלה מחדש של המערכת אחרי שהאפליקציה נסגרה (בלי בקשה): לא משדרים בלי הגבלה – עוצרים (בדיקת קוד, 17/11)
         if (i == null) { stopSelf(); return START_NOT_STICKY; }
@@ -157,6 +158,17 @@ public class LocService extends Service implements LocationListener {
                     try (InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { if (s.hasNext()) r = s.next(); }
                     state = "משדר";
                     if (r.contains("\"open\"")) h.post(() -> show("🚪 נשלחה פקודת פתיחה"));
+                    try { // 🔔 פתיחות של המשתמש הזה שהשרת דיווח עליהן – התראה פעם אחת לכל אחת
+                        org.json.JSONArray ev = new org.json.JSONObject(r).optJSONArray("ev");
+                        long seen = Prefs.lastEv(LocService.this);
+                        for (int k = 0; ev != null && k < ev.length(); k++) {
+                            org.json.JSONObject e = ev.getJSONObject(k); long eid = e.optLong("id");
+                            if (eid <= seen) continue; seen = eid;
+                            LocalEngine.log((e.optBoolean("ok") ? "✅ " : "⚠️ ") + e.optString("label") + (e.optBoolean("ok") ? " נפתח" : " לא נפתח"));
+                            Notify.gate(LocService.this, e.optString("label"), e.optBoolean("ok"), e.optString("text"));
+                        }
+                        Prefs.setLastEv(LocService.this, seen);
+                    } catch (Exception x) { /* תשובה ישנה בלי ev */ }
                 }
                 c.disconnect();
             } catch (Exception e) {
@@ -167,6 +179,7 @@ public class LocService extends Service implements LocationListener {
 
     @Override
     public void onDestroy() {
+        Notify.service(this, "⏹️ השידור נעצר");
         LocalEngine.log("⏹️ השידור נעצר" + (state == null || state.isEmpty() ? "" : " (" + state + ")"));
         final android.content.Context ctx = getApplicationContext(); new Thread(() -> LocalEngine.upload(ctx)).start();
         running = false;
