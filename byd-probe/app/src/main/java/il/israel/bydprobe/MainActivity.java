@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView status, report;
-    private Button permBtn, runBtn, sendBtn, upd, gatesBtn, screenBtn;
+    private Button permBtn, runBtn, sendBtn, upd, gatesBtn, screenBtn, modBtn;
     private String last;
     private boolean newer;
 
@@ -115,6 +115,27 @@ public class MainActivity extends Activity {
             } catch (Throwable e) { status.setText("⚠️ הקלטת מסך לא זמינה: " + e); }
         });
         root.addView(screenBtn, root.indexOfChild(row) + 1, new LinearLayout.LayoutParams(-1, dp(64)));
+
+        // 🧩 סקריפט מתעדכן: מוריד מהשרת את קוד הבדיקה העדכני (חתום) ומריץ – בלי התקנת אפליקציה
+        modBtn = btn("🧩 הרץ סקריפט מתעדכן", Color.rgb(79, 70, 229));
+        modBtn.setOnClickListener(v -> {
+            modBtn.setEnabled(false); modBtn.setAlpha(0.4f); report.setText("");
+            say("⏳ מתחבר לשרת…");
+            new Thread(() -> {
+                String r;
+                try { r = ModuleLoader.run(this, what -> say("⏳ " + what)); }
+                catch (Throwable e) { Throwable t = e; while (t.getCause() != null) t = t.getCause(); r = "🧩 הסקריפט לא רץ: " + t; }
+                final String res = r;
+                ui.post(() -> {
+                    last = (last == null ? "" : last + "\n\n") + res;
+                    report.setText(res);
+                    status.setText(res.startsWith("🧩 סקריפט") ? "✅ הסקריפט הסתיים. עכשיו לחץ \"שלח לשרת\"." : "⚠️ " + res);
+                    modBtn.setEnabled(true); modBtn.setAlpha(1f);
+                    sendBtn.setEnabled(true); sendBtn.setAlpha(1f);
+                });
+            }).start();
+        });
+        root.addView(modBtn, root.indexOfChild(row) + 1, new LinearLayout.LayoutParams(-1, dp(64)));
         gatesLabel();
 
         setContentView(root);
