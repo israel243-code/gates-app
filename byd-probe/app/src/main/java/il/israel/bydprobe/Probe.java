@@ -50,12 +50,10 @@ public class Probe {
 
     /** בדיקה 2 (קצרה): הרשאות + קריאה בפועל מהרכב + מצלמות */
     public String runLive() {
-        line("בדיקת רכב 2 (קריאה בפועל) – " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
+        line("בדיקת רכב 3 (חלונות נתונים פתוחים) – " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
         line("גרסת אפליקציה: " + ver());
         section("א. ההרשאות של אפליקציית הבדיקה", this::mine);
-        section("ב. קריאה מהרכב (סוללה, טעינה, נעילה, 360 ועוד)", () -> LiveRead.run(c, out, p));
-        section("ג. מצלמות – פתיחה ותמונה אחת", () -> LiveRead.cameras(out, p));
-        section("ד. מצלמות (Camera2)", this::cameras);
+        section("ב. חלונות נתונים פתוחים של BYD (קריאה בלבד)", () -> Providers.run(c, out, p));
         line("\n=== סוף ===");
         return out.toString();
     }
