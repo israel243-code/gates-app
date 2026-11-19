@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
     private TextView status, report;
     private Button permBtn, runBtn, sendBtn, upd;
     private String last;
+    private boolean newer;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -85,13 +86,15 @@ public class MainActivity extends Activity {
         sv.addView(report);
         root.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        upd = btn("⬇️ יש גרסה חדשה – לחץ לעדכון", Color.rgb(124, 58, 237));
-        upd.setVisibility(View.GONE);
-        upd.setOnClickListener(v -> startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://isrnb.duckdns.org/car"))));
+        upd = btn("🔄 בדוק עדכונים", Color.rgb(71, 85, 105));
+        upd.setOnClickListener(v -> {
+            if (newer) { startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://isrnb.duckdns.org/car"))); return; }
+            upd.setText("⏳ בודק…"); checkUpdate(true);
+        });
         root.addView(upd, 2, new LinearLayout.LayoutParams(-1, dp(64)));
 
         setContentView(root);
-        checkUpdate();
+        checkUpdate(false);
         runBtn.setOnClickListener(v -> start());
         permBtn.setOnClickListener(v -> askPerms());
         sendBtn.setOnClickListener(v -> askCode());
@@ -121,10 +124,11 @@ public class MainActivity extends Activity {
     private Button btn(String t, int color) {
         Button b = new Button(this);
         b.setText(t); b.setTextSize(22); b.setTextColor(Color.WHITE); b.setAllCaps(false);
-        GradientDrawable g = new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(14));
-        b.setBackground(g);
+        b.setBackground(round(color));
         return b;
     }
+
+    private GradientDrawable round(int color) { GradientDrawable g = new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(14)); return g; }
 
     private void say(String s) { ui.post(() -> status.setText(s)); }
 
@@ -165,8 +169,9 @@ public class MainActivity extends Activity {
     }
 
     // בדיקת עדכון: מספר הבנייה בכותרת השחרור ב-GitHub ("בנייה N") מול הגרסה המותקנת
-    private void checkUpdate() {
+    private void checkUpdate(boolean manual) {
         new Thread(() -> {
+            String res = "⚠️ אין תקשורת – נסה שוב";
             try {
                 HttpURLConnection h = (HttpURLConnection) new URL("https://api.github.com/repos/israel243-code/gates-app/releases/tags/byd-latest").openConnection();
                 h.setConnectTimeout(10000); h.setReadTimeout(10000);
@@ -174,11 +179,18 @@ public class MainActivity extends Activity {
                 byte[] buf = new byte[8192]; int n; StringBuilder sb = new StringBuilder();
                 while ((n = is.read(buf)) > 0) sb.append(new String(buf, 0, n, StandardCharsets.UTF_8));
                 java.util.regex.Matcher m = java.util.regex.Pattern.compile("בנייה (\\d+)").matcher(sb);
-                if (!m.find()) return;
-                int latest = Integer.parseInt(m.group(1));
-                int mine = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
-                if (latest > mine) ui.post(() -> upd.setVisibility(View.VISIBLE));
+                if (m.find()) {
+                    int latest = Integer.parseInt(m.group(1));
+                    int mine = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                    newer = latest > mine;
+                    res = newer ? "⬇️ יש גרסה חדשה – לחץ לעדכון" : "✅ יש לך את הגרסה האחרונה (" + mine + ")";
+                }
             } catch (Throwable ignored) {}
+            final String r = res;
+            ui.post(() -> {
+                if (newer) { upd.setText(r); upd.setBackground(round(Color.rgb(124, 58, 237))); }
+                else if (manual) { upd.setText(r); ui.postDelayed(() -> upd.setText("🔄 בדוק עדכונים"), 5000); }
+            });
         }).start();
     }
 
