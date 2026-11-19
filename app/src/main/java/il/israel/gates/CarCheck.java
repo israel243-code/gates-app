@@ -17,7 +17,13 @@ public class CarCheck extends BroadcastReceiver {
     @Override public void onReceive(Context c, Intent i) { LocalEngine.init(c); run(c, "אחרי " + (Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction()) ? "עדכון" : "הפעלה של הטלפון")); }
 
     static void run(Context c, String why) {
-        if (LocService.running || !Prefs.auto(c) || Prefs.locUrl(c) == null || Prefs.cars(c).isEmpty()) return;
+        if (LocService.running || !Prefs.auto(c) || Prefs.locUrl(c) == null) return;
+        if (Prefs.carScreen(c)) { // מסך הרכב: הרכב עצמו משדר, בלי לחכות לבלוטות'
+            LocalEngine.log("🖥️ מסך הרכב – מתחיל לשדר (" + why + ")");
+            try { LocService.start(c.getApplicationContext(), "מסך הרכב", 0); } catch (Exception e) { LocalEngine.log("⚠️ אנדרואיד חסם התחלה ברקע (" + e.getClass().getSimpleName() + ")"); }
+            return;
+        }
+        if (Prefs.cars(c).isEmpty()) return;
         BluetoothManager bm = c.getSystemService(BluetoothManager.class);
         BluetoothAdapter ad = bm == null ? null : bm.getAdapter();
         if (ad == null || !ad.isEnabled()) return;

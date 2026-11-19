@@ -41,6 +41,10 @@ final class Prefs {
     static Set<String> cars(Context c) { return new HashSet<>(p(c).getStringSet("cars", new HashSet<>())); }
     static void setCars(Context c, Set<String> s) { p(c).edit().putStringSet("cars", new HashSet<>(s)).apply(); }
 
+    // מסך המולטימדיה של הרכב (19/11): משדרים תמיד כשהמערכת פועלת, בלי טלפון ובלי בלוטות'. ברירת מחדל: מזוהה לבד במסך של BYD
+    static boolean carScreen(Context c) { return p(c).getBoolean("carScreen", isCarUnit()); }
+    static void setCarScreen(Context c, boolean b) { p(c).edit().putBoolean("carScreen", b).apply(); }
+    static boolean isCarUnit() { return (android.os.Build.MANUFACTURER + " " + android.os.Build.BRAND + " " + android.os.Build.DEVICE).toUpperCase().matches(".*(BYD|DILINK).*"); }
     static boolean auto(Context c) { return p(c).getBoolean("auto", true); }
 
     /** "חישוב בטלפון" (ניסיוני): המיקום לא נשלח לשרת – רק "לפתוח את X" */

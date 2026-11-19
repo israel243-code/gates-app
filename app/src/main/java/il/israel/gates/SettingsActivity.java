@@ -95,6 +95,13 @@ public class SettingsActivity extends Activity {
         auto.setChecked(Prefs.auto(this));
         auto.setOnCheckedChangeListener((v, on) -> Prefs.setAuto(this, on));
         cars.addView(auto);
+        Switch scr = new Switch(this);
+        scr.setText("🖥️ זה מסך הרכב – לשדר תמיד כשהרכב דלוק (בלי טלפון)");
+        scr.setTextSize(15);
+        scr.setTextColor(Ui.INK);
+        scr.setChecked(Prefs.carScreen(this));
+        scr.setOnCheckedChangeListener((v, on) -> { Prefs.setCarScreen(this, on); if (on) CarCheck.run(this, "הופעל בהגדרות"); else if (LocService.running) LocService.stop(this); });
+        cars.addView(scr);
         Ui.note(this, cars, "סמן את הבלוטות' של הרכב. השידור מתחיל כשהטלפון מתחבר אליו, ונעצר כשהוא מתנתק.");
         if (!bt) {
             Ui.note(this, cars, "כדי לראות את הרכבים – אשר בלוטות' (שלב 3 למעלה).");

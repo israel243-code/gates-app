@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView status, report;
-    private Button permBtn, runBtn, sendBtn, upd;
+    private Button permBtn, runBtn, sendBtn, upd, gatesBtn;
     private String last;
     private boolean newer;
 
@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
         root.setPadding(dp(24), dp(20), dp(24), dp(12));
 
         TextView title = new TextView(this);
-        title.setText("🔍 בדיקת רכב");
+        title.setText("🚗 הרכב שלי · בדיקה והתקנות");
         title.setTextSize(30); title.setTypeface(Typeface.DEFAULT_BOLD); title.setTextColor(Color.WHITE);
         root.addView(title);
 
@@ -88,10 +88,24 @@ public class MainActivity extends Activity {
 
         upd = btn("🔄 בדוק עדכונים", Color.rgb(71, 85, 105));
         upd.setOnClickListener(v -> {
-            if (newer) { startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://isrnb.duckdns.org/car"))); return; }
+            if (newer) { openUrl("https://isrnb.duckdns.org/car"); return; }
             upd.setText("⏳ בודק…"); checkUpdate(true);
         });
         root.addView(upd, 2, new LinearLayout.LayoutParams(-1, dp(64)));
+
+        // 📲 התקנות (19/11): כל האפליקציות שלנו לרכב מותקנות / מתעדכנות מכאן
+        LinearLayout inst = new LinearLayout(this);
+        inst.setOrientation(LinearLayout.HORIZONTAL);
+        inst.setPadding(0, dp(12), 0, 0);
+        gatesBtn = btn("", Color.rgb(13, 148, 136));
+        gatesBtn.setOnClickListener(v -> openUrl("https://isrnb.duckdns.org/app"));
+        Button carApp = btn("🚗 אפליקציית הרכב – בקרוב", Color.rgb(51, 65, 85));
+        carApp.setEnabled(false); carApp.setAlpha(0.6f);
+        inst.addView(gatesBtn, new LinearLayout.LayoutParams(0, dp(64), 1));
+        View gap2 = new View(this); inst.addView(gap2, new LinearLayout.LayoutParams(dp(16), 1));
+        inst.addView(carApp, new LinearLayout.LayoutParams(0, dp(64), 1));
+        root.addView(inst, 3);
+        gatesLabel();
 
         setContentView(root);
         checkUpdate(false);
@@ -167,6 +181,18 @@ public class MainActivity extends Activity {
     private static void write(File f, String s) throws Exception {
         try (FileOutputStream o = new FileOutputStream(f)) { o.write(s.getBytes(StandardCharsets.UTF_8)); }
     }
+
+    private void openUrl(String u) { startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(u))); }
+
+    // אפליקציית השערים: מותקנת? באיזו גרסה
+    private void gatesLabel() {
+        try {
+            int v = getPackageManager().getPackageInfo("il.israel.gates", 0).versionCode;
+            gatesBtn.setText("🚪 שערים מותקנת (" + v + ") · עדכן");
+        } catch (Throwable e) { gatesBtn.setText("🚪 התקן את אפליקציית השערים"); }
+    }
+
+    @Override protected void onResume() { super.onResume(); if (gatesBtn != null) gatesLabel(); }
 
     // בדיקת עדכון: מספר הבנייה בכותרת השחרור ב-GitHub ("בנייה N") מול הגרסה המותקנת
     private void checkUpdate(boolean manual) {

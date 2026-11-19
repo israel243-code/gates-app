@@ -60,6 +60,7 @@ public class LocService extends Service implements LocationListener {
         if (i != null && !running) Notify.service(this, "📡 השידור התחיל" + (i.getStringExtra("why") == null ? "" : " · " + i.getStringExtra("why")));
         if (i != null) LocalEngine.log("▶️ השידור התחיל (" + (i.getStringExtra("why") == null ? "" : i.getStringExtra("why")) + ") – חישוב בטלפון");
         // הפעלה מחדש של המערכת אחרי שהאפליקציה נסגרה (בלי בקשה): לא משדרים בלי הגבלה – עוצרים (בדיקת קוד, 17/11)
+        if (i == null && Prefs.carScreen(this) && Prefs.auto(this) && Prefs.locUrl(this) != null) i = new Intent().putExtra("why", "מסך הרכב"); // במסך הרכב – ממשיכים (19/11)
         if (i == null) { stopSelf(); return START_NOT_STICKY; }
         why = i.getStringExtra("why") != null ? i.getStringExtra("why") : "";
         int min = i != null ? i.getIntExtra("min", 0) : 0;
