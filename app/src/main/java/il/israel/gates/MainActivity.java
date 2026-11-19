@@ -123,9 +123,8 @@ public class MainActivity extends Activity {
         TextView st = new TextView(this);
         st.setTextSize(17); st.setTextColor(Ui.INK); st.setGravity(android.view.Gravity.CENTER); st.setPadding(0, dp(10), 0, dp(6));
         k.addView(st);
-        Ui.step(this, k, 1, false, "פותחים את המצלמה בטלפון ומכוונים לברקוד", null, null, null);
-        Ui.step(this, k, 2, false, "פותחים את הקישור באפליקציית \"שערים\"", "אם נפתח דפדפן – לוחצים שם \"פתח באפליקציית השערים\"", null, null);
-        Ui.step(this, k, 3, false, "לוחצים \"חבר\" בטלפון", "הרכב מתחבר לבד תוך כמה שניות", null, null);
+        Ui.step(this, k, 1, false, "בטלפון: אפליקציית השערים ← ⚙️ הגדרות ← \"חיבור מסך רכב\"", "\"סרוק את הברקוד\" או \"הקלד את הקוד\". אפשר גם עם המצלמה הרגילה", null, null);
+        Ui.step(this, k, 2, false, "לוחצים \"חבר\" בטלפון", "הרכב מתחבר לבד תוך כמה שניות", null, null);
         Ui.button(this, k, "🔄 ברקוד חדש", false, v -> newPair(img, st));
         LinearLayout k2 = Ui.card(this, root, "כניסה אחרת");
         Ui.button(this, k2, "📱 עם מספר טלפון או קישור", false, v -> { manualLogin = true; pairId = null; onboardingManual(); });
@@ -150,7 +149,8 @@ public class MainActivity extends Activity {
                     android.graphics.Bitmap big = android.graphics.Bitmap.createScaledBitmap(bm, sz * 10, sz * 10, false);
                     img.setImageBitmap(big);
                     pairId = j.getString("id"); pairSecret = j.getString("secret");
-                    st.setText("מחכה לסריקה… (תקף ל-5 דקות)");
+                    String cd = j.optString("code", "");
+                    st.setText((cd.length() == 6 ? "או הקלד בטלפון את הקוד:  " + cd.substring(0, 3) + " " + cd.substring(3) + "\n" : "") + "מחכה… (תקף ל-5 דקות)");
                     pollPair(pairId, img, st);
                 } catch (Exception e) { st.setText("⚠️ אין חיבור לאינטרנט. לחץ \"ברקוד חדש\""); }
             });
@@ -183,26 +183,10 @@ public class MainActivity extends Activity {
         }, 2000);
     }
 
-    /** בטלפון: נסרק ברקוד ממסך הרכב → אישור → הרכב מקבל את הקישור האישי */
-    private void approvePair(String c) {
-        String u = Prefs.url(this);
-        if (!Prefs.valid(u)) { Toast.makeText(this, "קודם צריך להתחבר לשערים בטלפון הזה", Toast.LENGTH_LONG).show(); return; }
-        String t = Uri.parse(u).getQueryParameter("t");
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("🚗 לחבר את מסך הרכב?")
-                .setMessage("מסך הרכב יקבל את החשבון שלך ואת השערים שלך, ויפתח אותם לבד כשהרכב מתקרב.")
-                .setPositiveButton("✅ חבר", (d, w) -> new Thread(() -> {
-                    String r = http("https://isrnb.duckdns.org/pair?step=approve", "id=" + Uri.encode(c) + "&t=" + Uri.encode(t == null ? "" : t));
-                    String msg = "⚠️ אין חיבור לאינטרנט";
-                    try { msg = new org.json.JSONObject(r).optString("r", msg); } catch (Exception e) { /* נשאר */ }
-                    final String m = msg;
-                    runOnUiThread(() -> Toast.makeText(this, m, Toast.LENGTH_LONG).show());
-                }).start())
-                .setNegativeButton("ביטול", null)
-                .show();
-    }
+    /** בטלפון: נסרק ברקוד ממסך הרכב (מצלמה רגילה) → אישור */
+    private void approvePair(String c) { Pair.approve(this, c, false); }
 
-    private static String http(String url, String body) {
+    static String http(String url, String body) {
         try {
             java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
             h.setRequestMethod("POST"); h.setDoOutput(true); h.setConnectTimeout(12000); h.setReadTimeout(15000);
@@ -336,6 +320,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void stop() { runOnUiThread(() -> LocService.stop(MainActivity.this)); }
         @JavascriptInterface public String cars() { return String.valueOf(Prefs.cars(MainActivity.this).size()); }
         @JavascriptInterface public boolean auto() { return Prefs.auto(MainActivity.this); }
+        @JavascriptInterface public boolean carScreen() { return Prefs.carScreen(MainActivity.this); }
+        @JavascriptInterface public void pairScan() { runOnUiThread(() -> Pair.scan(MainActivity.this)); }
         @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> Updater.check(MainActivity.this, false)); }
         @JavascriptInterface public String version() { return Updater.currentName(MainActivity.this); }
         /** דף הכניסה עם מספר טלפון (/join) מחזיר את הקישור האישי – נשמר כמו קישור שנלחץ בוואטסאפ (18/11) */

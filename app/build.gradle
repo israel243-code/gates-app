@@ -43,4 +43,6 @@ android {
 // אנדרואיד אוטו (18/11, באישור הבעלים): הספרייה הרשמית של גוגל לאפליקציות רכב
 dependencies {
     implementation 'androidx.car.app:app:1.4.0'
+    // 19/11 (הבעלים אישר): סורק הברקוד של גוגל – לחיבור מסך הרכב
+    implementation 'com.google.android.gms:play-services-code-scanner:16.1.0'
 }

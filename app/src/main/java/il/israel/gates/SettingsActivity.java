@@ -65,21 +65,22 @@ public class SettingsActivity extends Activity {
         boolean fine = has(Manifest.permission.ACCESS_FINE_LOCATION);
         boolean bg = Build.VERSION.SDK_INT < 29 || has(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
         boolean nt = Build.VERSION.SDK_INT < 33 || has(Manifest.permission.POST_NOTIFICATIONS);
-        boolean bt = Build.VERSION.SDK_INT < 31 || has(Manifest.permission.BLUETOOTH_CONNECT);
-        boolean batt = getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
-        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (bt ? 1 : 0) + (batt ? 1 : 0);
-        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך 5");
+        boolean car = Prefs.carScreen(this); // 🖥️ מסך הרכב: בלי בלוטות' ובלי חיסכון סוללה (19/11, הבעלים: "לא רלוונטי ברכב")
+        boolean bt = car || Build.VERSION.SDK_INT < 31 || has(Manifest.permission.BLUETOOTH_CONNECT);
+        boolean batt = car || getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
+        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? 0 : (bt ? 1 : 0) + (batt ? 1 : 0));
+        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך " + (car ? 3 : 5));
         Ui.step(this, perm, 1, fine, "מיקום", "כדי לדעת כשאתה מתקרב לשער", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 2));
         Ui.step(this, perm, 2, bg, "מיקום כל הזמן", Build.VERSION.SDK_INT >= 30 ? "בהגדרות: מיקום ← \"לאפשר כל הזמן\"" : "נדרש לשידור ברקע", "פתח", v -> {
             if (!fine) { requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2); return; }
             if (Build.VERSION.SDK_INT >= 30) openAppSettings(); else requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 3);
         });
-        Ui.step(this, perm, 3, bt, "בלוטות'", "כדי לזהות שנכנסת לרכב", "אפשר",
+        if (!car) Ui.step(this, perm, 3, bt, "בלוטות'", "כדי לזהות שנכנסת לרכב", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 1));
-        Ui.step(this, perm, 4, nt, "התראות", "רואים מתי משדרים ומתי שער נפתח", "אפשר",
+        Ui.step(this, perm, car ? 3 : 4, nt, "התראות", "רואים מתי משדרים ומתי שער נפתח", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 4));
-        Ui.step(this, perm, 5, batt, "בלי חיסכון סוללה", "אחרת אנדרואיד חוסם התחלה ברקע", "פתח", v -> {
+        if (!car) Ui.step(this, perm, 5, batt, "בלי חיסכון סוללה", "אחרת אנדרואיד חוסם התחלה ברקע", "פתח", v -> {
             try { startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); }
             catch (Exception e) { openAppSettings(); }
         });
@@ -87,14 +88,15 @@ public class SettingsActivity extends Activity {
             Ui.note(this, perm, "בשיאומי / רדמי: גם בהגדרות האפליקציה ← \"חיסכון בסוללה\" ← \"ללא הגבלות\", ו\"הפעלה אוטומטית\" מופעלת.");
 
         // --- 2. רכבים ---
-        LinearLayout cars = Ui.card(this, root, "🚗 הרכבים שלי");
+        LinearLayout cars = Ui.card(this, root, car ? "🚗 מסך הרכב" : "🚗 הרכבים שלי");
         Switch auto = new Switch(this);
-        auto.setText("לשדר לבד כשמתחברים לרכב");
+        auto.setText(car ? "🚪 פתיחה אוטומטית – השערים נפתחים לבד כשהרכב מתקרב" : "🚪 פתיחה אוטומטית – כשנכנסים לרכב, השערים נפתחים לבד כשמתקרבים");
         auto.setTextSize(15);
         auto.setTextColor(Ui.INK);
         auto.setChecked(Prefs.auto(this));
-        auto.setOnCheckedChangeListener((v, on) -> Prefs.setAuto(this, on));
+        auto.setOnCheckedChangeListener((v, on) -> { Prefs.setAuto(this, on); if (on) CarCheck.run(this, "הופעל בהגדרות"); else if (LocService.running) LocService.stop(this); });
         cars.addView(auto);
+        Ui.note(this, cars, "כבוי = השערים נפתחים רק בכפתור \"פתח\". הסימון \"פתיחה אוטומטית\" ליד כל שער בדף השערים בוחר אילו שערים.");
         Switch scr = new Switch(this);
         scr.setText("🖥️ זה מסך הרכב – לשדר תמיד כשהרכב דלוק (בלי טלפון)");
         scr.setTextSize(15);
@@ -102,6 +104,9 @@ public class SettingsActivity extends Activity {
         scr.setChecked(Prefs.carScreen(this));
         scr.setOnCheckedChangeListener((v, on) -> { Prefs.setCarScreen(this, on); if (on) CarCheck.run(this, "הופעל בהגדרות"); else if (LocService.running) LocService.stop(this); });
         cars.addView(scr);
+        if (car) {
+            Ui.note(this, cars, "המיקום מגיע מה-GPS של הרכב, כל עוד הרכב דלוק. לא צריך טלפון ולא בלוטות'.");
+        } else {
         Ui.note(this, cars, "סמן את הבלוטות' של הרכב. השידור מתחיל כשהטלפון מתחבר אליו, ונעצר כשהוא מתנתק.");
         if (!bt) {
             Ui.note(this, cars, "כדי לראות את הרכבים – אשר בלוטות' (שלב 3 למעלה).");
@@ -128,6 +133,14 @@ public class SettingsActivity extends Activity {
                 });
                 cars.addView(cb);
             }
+        }
+        }
+        // 🚗 חיבור מסך רכב מהטלפון: סריקת הברקוד או הקלדת הקוד שעל המסך (19/11)
+        if (!car && Prefs.valid(Prefs.url(this))) {
+            LinearLayout pc = Ui.card(this, root, "🖥️ חיבור מסך רכב");
+            Ui.note(this, pc, "במסך הרכב, באפליקציית השערים, מופיע ברקוד וקוד של 6 ספרות.");
+            Ui.button(this, pc, "📷 סרוק את הברקוד", true, v -> Pair.scan(this));
+            Ui.button(this, pc, "🔢 הקלד את הקוד", false, v -> Pair.askCode(this));
         }
 
         // --- פרטיות (ניסיוני) – תשתית לאפשרות ג'. רק במצב מנהל (הבעלים, 18/11) ---
