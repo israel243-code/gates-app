@@ -146,6 +146,7 @@ public class SettingsActivity extends Activity {
         // --- פרטיות (ניסיוני) – תשתית לאפשרות ג'. רק במצב מנהל (הבעלים, 18/11) ---
         if (!Prefs.isDash(Prefs.admin(this))) { if (Prefs.local(this)) Prefs.setLocal(this, false); } else {
         LinearLayout priv = Ui.card(this, root, "🔒 חישוב בטלפון (ניסיוני)");
+        if (car) priv.setVisibility(View.GONE); // 20/11: מסך הרכב – בלי דברים שלא רלוונטיים
         Switch loc = new Switch(this);
         loc.setText("המיקום לא נשלח לשרת – הטלפון מחליט לבד מתי לפתוח");
         loc.setTextSize(15);
@@ -164,6 +165,7 @@ public class SettingsActivity extends Activity {
 
         // --- 3. שידור ידני ---
         LinearLayout man = Ui.card(this, root, "📡 שידור עכשיו");
+        if (car) man.setVisibility(View.GONE); // ברכב משדרים לבד, אין "שידור מרכב אחר"
         Ui.note(this, man, "למשל ברכב אחר. נעצר לבד בסוף הזמן.");
         status = Ui.text(this, "", 14, Ui.INK, true);
         status.setPadding(0, 0, 0, Ui.dp(this, 6));
@@ -188,6 +190,7 @@ public class SettingsActivity extends Activity {
 
         // --- 🔔 התראות (19/11): גם כשהאפליקציה סגורה ---
         LinearLayout ntc = Ui.card(this, root, "🔔 התראות");
+        if (car) ntc.setVisibility(View.GONE);
         Ui.note(this, ntc, "התראות בטלפון – גם כשהאפליקציה סגורה, בזמן שהיא משדרת.");
         String[][] NT = {{"nOpen", "כששער נפתח", "1"}, {"nFail", "כשפתיחה נכשלה", "1"}, {"nSound", "עם צליל ורטט", "1"}, {"nService", "כשהשידור מתחיל ונעצר", "0"}};
         for (String[] x : NT) {
@@ -201,6 +204,7 @@ public class SettingsActivity extends Activity {
 
         // --- נעילה (לבחירת המשתמש, 18/11) ---
         LinearLayout lk = Ui.card(this, root, "🔒 נעילה");
+        if (car) lk.setVisibility(View.GONE); // אין טביעת אצבע / נעילת מסך במסך הרכב
         Ui.note(this, lk, Lock.available(this) ? "טביעת אצבע, פנים או קוד הטלפון. הפתיחה האוטומטית ברכב לא מושפעת."
                 : "בטלפון אין נעילת מסך, לכן הנעילה לא תפעל. מגדירים נעילת מסך בהגדרות הטלפון.");
         String[] LK = {"בלי נעילה", "לפני כל פתיחה בכפתור", "בכל כניסה לאפליקציה"};
@@ -220,6 +224,7 @@ public class SettingsActivity extends Activity {
 
         // --- מצב מנהל ---
         LinearLayout adm = Ui.card(this, root, "🛡️ מצב מנהל (לבעלים)");
+        if (car) adm.setVisibility(View.GONE);
         if (!Prefs.isDash(Prefs.admin(this))) {
             Ui.note(this, adm, "שלח לבוט \"דשבורד\", העתק את הקישור ולחץ כאן. האפליקציה תציג את הדשבורד המלא; הכניסה בקוד מוואטסאפ.");
             Ui.button(this, adm, "📋 הדבק קישור דשבורד", false, v -> {

@@ -17,7 +17,7 @@ final class Prefs {
     static void setUrl(Context c, String u) { p(c).edit().putString("url", u == null ? "" : u.trim()).apply(); }
 
     /** נעילה: 0 = בלי, 1 = לפני כל פתיחה בכפתור, 2 = בכל כניסה לאפליקציה (18/11) */
-    static int lock(Context c) { return p(c).getInt("lock", 0); }
+    static int lock(Context c) { return carScreen(c) ? 0 : p(c).getInt("lock", 0); } // במסך הרכב אין נעילה (20/11)
     static void setLock(Context c, int v) { p(c).edit().putInt("lock", v).apply(); }
 
     /** מצב מנהל: קישור הדשבורד של הבעלים (נכנסים אליו עם קוד מוואטסאפ, כמו בדפדפן) */
