@@ -18,32 +18,27 @@ public class CarCheck extends BroadcastReceiver {
 
     @Override public void onReceive(Context c, Intent i) {
         LocalEngine.init(c);
-        if (RECHECK.equals(i.getAction())) { // #49: אחרי ירידה מהרכב – בדיקה שקטה כל דקה, חצי שעה
-            long until = c.getSharedPreferences("gates", Context.MODE_PRIVATE).getLong("recheckUntil", 0);
-            if (LocService.running || System.currentTimeMillis() > until) return;
-            run(c, "בדיקה אחרי ירידה מהרכב");
-            next(c);
+        if (RECHECK.equals(i.getAction())) { // #50: בדיקה שקטה כל 2 דקות, כל הזמן – אם ההודעה "הרכב התחבר" פוספסה
+            run(c, "בדיקה תקופתית");
             return;
         }
         run(c, "אחרי " + (Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction()) ? "עדכון" : "הפעלה של הטלפון"));
     }
 
-    static void startRecheck(Context c) {
-        c.getSharedPreferences("gates", Context.MODE_PRIVATE).edit().putLong("recheckUntil", System.currentTimeMillis() + 30 * 60000L).apply();
-        next(c);
-    }
+    static void startRecheck(Context c) { next(c); }
 
-    static void stopRecheck(Context c) { c.getSharedPreferences("gates", Context.MODE_PRIVATE).edit().putLong("recheckUntil", 0).apply(); }
+    static void stopRecheck(Context c) { /* #50: הבדיקה התקופתית רצה תמיד; כשמשדרים היא לא עושה כלום */ }
 
     private static void next(Context c) {
         android.app.AlarmManager am = c.getSystemService(android.app.AlarmManager.class);
         if (am == null) return;
         android.app.PendingIntent pi = android.app.PendingIntent.getBroadcast(c, 49, new Intent(c, CarCheck.class).setAction(RECHECK),
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
-        am.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, android.os.SystemClock.elapsedRealtime() + 60000L, pi);
+        am.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, android.os.SystemClock.elapsedRealtime() + 120000L, pi);
     }
 
     static void run(Context c, String why) {
+        next(c); // שומר על שרשרת הבדיקה כל 2 דקות (אותו מזהה – מחליף, לא מכפיל)
         if (LocService.running || !Prefs.auto(c) || Prefs.locUrl(c) == null) return;
         if (Prefs.carScreen(c)) { // מסך הרכב: הרכב עצמו משדר, בלי לחכות לבלוטות'
             LocalEngine.log("🖥️ מסך הרכב – מתחיל לשדר (" + why + ")");

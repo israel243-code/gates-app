@@ -15,14 +15,19 @@ public class BtReceiver extends BroadcastReceiver {
         BluetoothDevice d = Build.VERSION.SDK_INT >= 33
                 ? i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class)
                 : i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-        if (d == null || !Prefs.cars(c).contains(d.getAddress())) return;
-        String name = "";
-        try { name = d.getName() == null ? "" : d.getName(); } catch (SecurityException e) { /* בלי שם */ }
         String act = i.getAction() == null ? "" : i.getAction();
+        String kind = act.endsWith("ACL_CONNECTED") ? "התחבר" : act.endsWith("ACL_DISCONNECTED") ? "התנתק" : act.contains("a2dp") ? "אודיו" : "דיבורית";
+        String name = "";
+        if (d != null) try { name = d.getName() == null ? "" : d.getName(); } catch (SecurityException e) { /* בלי שם */ }
+        if (d == null || !Prefs.cars(c).contains(d.getAddress())) { // #50: לרשום גם מה שמתעלמים ממנו – כדי לדעת אם אנדרואיד שלח משהו
+            if (!kind.equals("אודיו") && !kind.equals("דיבורית")) LocalEngine.log("ℹ️ בלוטות' " + kind + ": " + (d == null ? "מכשיר לא ידוע" : name) + " – לא רכב מסומן");
+            return;
+        }
         boolean profile = act.endsWith("profile.action.CONNECTION_STATE_CHANGED");
+        if (profile) LocalEngine.log("ℹ️ בלוטות' " + kind + " (" + name + "): מצב " + i.getIntExtra("android.bluetooth.profile.extra.STATE", -1) + (LocService.running ? ", כבר משדר" : ""));
         if (profile && (i.getIntExtra("android.bluetooth.profile.extra.STATE", -1) != 2 || LocService.running)) return; // גיבוי: רק "התחבר", ורק אם עוד לא משדרים
         if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(act) || profile) {
-            if (LocService.running) return;
+            if (LocService.running) { LocalEngine.log("ℹ️ הרכב התחבר (" + name + ") – כבר משדר"); return; }
             CarCheck.stopRecheck(c);
             LocalEngine.log("🚗 הרכב התחבר" + (profile ? " (גיבוי: " + (act.contains("a2dp") ? "אודיו" : "דיבורית") + ")" : "") + ": " + name);
             final PendingResult pr0 = goAsync(); new Thread(() -> { try { LocalEngine.upload(c.getApplicationContext()); } finally { pr0.finish(); } }).start();
