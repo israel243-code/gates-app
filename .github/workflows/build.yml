@@ -3,6 +3,9 @@ name: build-apk
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'byd-probe/**'
+      - '.github/workflows/byd.yml'
   workflow_dispatch: {}
 
 permissions:
