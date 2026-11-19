@@ -167,8 +167,8 @@ public class SettingsActivity extends Activity {
         Ui.button(this, upd, "🔄 בדוק עדכונים", false, v -> Updater.check(this, false));
 
         // --- 🔔 התראות (19/11): גם כשהאפליקציה סגורה ---
-        LinearLayout nt = Ui.card(this, root, "🔔 התראות");
-        Ui.note(this, nt, "התראות בטלפון – גם כשהאפליקציה סגורה, בזמן שהיא משדרת.");
+        LinearLayout ntc = Ui.card(this, root, "🔔 התראות");
+        Ui.note(this, ntc, "התראות בטלפון – גם כשהאפליקציה סגורה, בזמן שהיא משדרת.");
         String[][] NT = {{"nOpen", "כששער נפתח", "1"}, {"nFail", "כשפתיחה נכשלה", "1"}, {"nSound", "עם צליל ורטט", "1"}, {"nService", "כשהשידור מתחיל ונעצר", "0"}};
         for (String[] x : NT) {
             Switch sw = new Switch(this);
@@ -176,7 +176,7 @@ public class SettingsActivity extends Activity {
             sw.setChecked(Prefs.flag(this, x[0], "1".equals(x[2])));
             final String k = x[0];
             sw.setOnCheckedChangeListener((v, on) -> Prefs.setFlag(this, k, on));
-            nt.addView(sw);
+            ntc.addView(sw);
         }
 
         // --- נעילה (לבחירת המשתמש, 18/11) ---
