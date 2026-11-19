@@ -4,7 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - 'byd-probe/**'
+      - 'byd-probe/app/**'
+      - 'byd-probe/*.gradle'
+      - 'byd-probe/gradle.properties'
+      - 'byd-probe/signing/**'
       - '.github/workflows/byd.yml'
   workflow_dispatch: {}
 

@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - 'byd-probe/**'
       - '.github/workflows/byd.yml'
+      - '.github/workflows/byd-module.yml'
   workflow_dispatch: {}
 
 permissions:

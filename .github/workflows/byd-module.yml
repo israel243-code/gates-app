@@ -1,0 +1,42 @@
+name: build-byd-module
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'byd-probe/module/**'
+      - '.github/workflows/byd-module.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  mod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compile to dex
+        run: |
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
+          AJ="$SDK/platforms/android-34/android.jar"
+          mkdir -p out/classes
+          javac --release 8 -cp "$AJ" -d out/classes $(find byd-probe/module/src -name '*.java')
+          (cd out/classes && jar cf ../mod.jar .)
+          "$BT/d8" --lib "$AJ" --min-api 24 --output out out/mod.jar
+          (cd out && zip -q probe.jar classes.dex)
+          ls -la out/probe.jar
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete byd-module -y --cleanup-tag || true
+          gh release create byd-module out/probe.jar --latest=false --prerelease --title "סקריפט בדיקה · בנייה ${{ github.run_number }}" --notes "סקריפט שנטען לאפליקציה ברכב (חתום בשרת לפני שהוא מוגש)"
