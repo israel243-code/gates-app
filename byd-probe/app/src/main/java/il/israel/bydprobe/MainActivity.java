@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView status, report;
-    private Button permBtn, runBtn, sendBtn, upd, gatesBtn;
+    private Button permBtn, runBtn, sendBtn, upd, gatesBtn, screenBtn;
     private String last;
     private boolean newer;
 
@@ -105,6 +105,16 @@ public class MainActivity extends Activity {
         View gap2 = new View(this); inst.addView(gap2, new LinearLayout.LayoutParams(dp(16), 1));
         inst.addView(carApp, new LinearLayout.LayoutParams(0, dp(64), 1));
         root.addView(inst, 3);
+
+        // 🎞️ בדיקת הקלטת מסך (תצוגת 360): בחניה בלבד
+        screenBtn = btn("🎞️ בדיקת הקלטת מסך (בחניה בלבד)", Color.rgb(190, 24, 93));
+        screenBtn.setOnClickListener(v -> {
+            try {
+                android.media.projection.MediaProjectionManager mpm = (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+                startActivityForResult(mpm.createScreenCaptureIntent(), 77);
+            } catch (Throwable e) { status.setText("⚠️ הקלטת מסך לא זמינה: " + e); }
+        });
+        root.addView(screenBtn, root.indexOfChild(row) + 1, new LinearLayout.LayoutParams(-1, dp(64)));
         gatesLabel();
 
         setContentView(root);
@@ -123,6 +133,26 @@ public class MainActivity extends Activity {
             for (String s : all) if (checkSelfPermission(s) != PackageManager.PERMISSION_GRANTED && !s.equals(Manifest.permission.INTERNET)) need.add(s);
             if (need.isEmpty()) { status.setText("✅ כל ההרשאות כבר מאושרות. לחץ \"הרץ בדיקה\"."); return; }
             requestPermissions(need.toArray(new String[0]), 2);
+        } catch (Throwable e) { status.setText("⚠️ " + e); }
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, android.content.Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != 77) return;
+        if (res != RESULT_OK || data == null) { status.setText("הקלטת המסך לא אושרה (לחצת ביטול או שהרכב חסם)."); last = (last == null ? "" : last) + "\n\n========== ה. הקלטת מסך ==========\nלא אושרה / נחסמה (resultCode=" + res + ")\n"; sendBtn.setEnabled(true); sendBtn.setAlpha(1f); return; }
+        try {
+            android.media.projection.MediaProjectionManager mpm = (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+            android.media.projection.MediaProjection mp = mpm.getMediaProjection(res, data);
+            status.setText("🎞️ מקליט 30 שניות. עכשיו פתח את תצוגת 360 של הרכב (בחניה בלבד!) והשאר אותה על המסך.");
+            screenBtn.setEnabled(false); screenBtn.setAlpha(0.4f);
+            ScreenTest.run(this, mp, rep -> ui.post(() -> {
+                last = (last == null ? "" : last) + "\n\n========== ה. הקלטת מסך (תצוגת 360) ==========\n" + rep + "\n=== סוף ===\n";
+                report.setText(last);
+                status.setText("✅ בדיקת ההקלטה הסתיימה. עכשיו לחץ \"שלח לשרת\".");
+                screenBtn.setEnabled(true); screenBtn.setAlpha(1f);
+                sendBtn.setEnabled(true); sendBtn.setAlpha(1f);
+            }));
         } catch (Throwable e) { status.setText("⚠️ " + e); }
     }
 
@@ -150,7 +180,7 @@ public class MainActivity extends Activity {
         runBtn.setEnabled(false); runBtn.setAlpha(0.4f);
         report.setText("");
         new Thread(() -> {
-            String r = new Probe(this, what -> say("⏳ " + what)).runLive();
+            String r = new Probe(this, what -> say("⏳ " + what)).runCams();
             last = r;
             String where = save(r);
             ui.post(() -> {

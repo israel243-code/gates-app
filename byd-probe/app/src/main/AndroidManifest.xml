@@ -33,6 +33,7 @@
     <uses-permission android:name="android.permission.BYDAUTO_TYRE_COMMON" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <application

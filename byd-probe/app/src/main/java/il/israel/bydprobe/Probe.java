@@ -58,6 +58,18 @@ public class Probe {
         return out.toString();
     }
 
+    /** בדיקה 4: מצלמות – קבצי DVR, שירות המצלמות (קריאה בלבד), USB */
+    public String runCams() {
+        line("בדיקת רכב 4 (מצלמות: קבצים, שירות, USB) – " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
+        line("גרסת אפליקציה: " + ver());
+        section("א. אחסון וקבצי הקלטה (DVR)", () -> CamProbe.storage(c, out));
+        section("ב. שירות המצלמות של BYD (קריאה בלבד)", () -> CamProbe.service(out));
+        section("ג. USB ומצלמות חיצוניות", () -> CamProbe.usb(c, out));
+        section("ד. מצלמות (Camera2)", this::cameras);
+        line("\n=== סוף ===");
+        return out.toString();
+    }
+
     private String ver() { try { return c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName; } catch (Throwable e) { return "?"; } }
 
     public String run() {
