@@ -50,7 +50,7 @@ final class Ui {
         return h;
     }
 
-    static TextView text(Context c, String s, int sp, int color, boolean bold) {
+    static TextView text(Context c, String s, float sp, int color, boolean bold) {
         TextView t = new TextView(c);
         t.setText(s);
         t.setTextSize(sp);
@@ -70,28 +70,33 @@ final class Ui {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(dp(c, 14), dp(c, 12), dp(c, 14), 0);
         parent.addView(k, lp);
-        if (title != null) { TextView t = text(c, title, 17, INK, true); t.setPadding(0, 0, 0, dp(c, 8)); k.addView(t); }
+        if (title != null) { TextView t = text(c, title, 17 * k(c), INK, true); t.setPadding(0, 0, 0, dp(c, 8)); k.addView(t); }
         return k;
     }
 
     static TextView note(Context c, LinearLayout parent, String s) {
-        TextView t = text(c, s, 13, MUTED, false);
+        TextView t = text(c, s, 13 * k(c), MUTED, false);
         t.setPadding(0, dp(c, 2), 0, dp(c, 6));
         parent.addView(t);
         return t;
     }
 
     /** כפתור מלא (ראשי) או רך (משני) */
+    /** 🚗 במסך הרכב (מגע, מסך רחב): טקסט וכפתורים גדולים יותר (20/11) */
+    static float k(Context c) { return Prefs.carScreen(c) ? 1.3f : 1f; }
+
     static Button button(Context c, LinearLayout parent, String s, boolean primary, View.OnClickListener l) {
         Button b = new Button(c);
         b.setText(s);
         b.setAllCaps(false);
-        b.setTextSize(15);
+        b.setTextSize(15 * k(c));
         b.setTypeface(Typeface.DEFAULT_BOLD);
         b.setTextColor(primary ? Color.WHITE : PRI);
-        b.setBackground(round(primary ? PRI : SOFT, dp(c, 14)));
+        b.setBackground(round(primary ? PRI : SOFT, dp(c, Prefs.carScreen(c) ? 18 : 14)));
         b.setStateListAnimator(null);
-        b.setPadding(dp(c, 14), dp(c, 12), dp(c, 14), dp(c, 12));
+        b.setMinHeight(Prefs.carScreen(c) ? dp(c, 60) : 0);
+        b.setMinimumHeight(Prefs.carScreen(c) ? dp(c, 60) : 0);
+        b.setPadding(dp(c, 14), dp(c, Prefs.carScreen(c) ? 16 : 12), dp(c, 14), dp(c, Prefs.carScreen(c) ? 16 : 12));
         b.setOnClickListener(l);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, dp(c, 6), 0, 0);
@@ -105,21 +110,22 @@ final class Ui {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(c, 8), 0, dp(c, 8));
-        TextView dot = text(c, done ? "✓" : String.valueOf(n), 15, Color.WHITE, true);
+        TextView dot = text(c, done ? "✓" : String.valueOf(n), 15 * k(c), Color.WHITE, true);
         dot.setGravity(Gravity.CENTER);
-        dot.setBackground(round(done ? OK : WARN, dp(c, 15)));
-        row.addView(dot, new LinearLayout.LayoutParams(dp(c, 30), dp(c, 30)));
+        int ds = Math.round(30 * k(c));
+        dot.setBackground(round(done ? OK : WARN, dp(c, ds / 2)));
+        row.addView(dot, new LinearLayout.LayoutParams(dp(c, ds), dp(c, ds)));
         LinearLayout txt = new LinearLayout(c);
         txt.setOrientation(LinearLayout.VERTICAL);
         txt.setPadding(dp(c, 12), 0, dp(c, 12), 0);
-        txt.addView(text(c, title, 15, INK, true));
-        if (sub != null) txt.addView(text(c, sub, 12, MUTED, false));
+        txt.addView(text(c, title, 15 * k(c), INK, true));
+        if (sub != null) txt.addView(text(c, sub, 12 * k(c), MUTED, false));
         row.addView(txt, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         if (!done && action != null) {
             Button b = new Button(c);
             b.setText(action);
             b.setAllCaps(false);
-            b.setTextSize(13);
+            b.setTextSize(13 * k(c));
             b.setTypeface(Typeface.DEFAULT_BOLD);
             b.setTextColor(Color.WHITE);
             b.setBackground(round(PRI, dp(c, 12)));
@@ -128,7 +134,7 @@ final class Ui {
             b.setMinimumWidth(0);
             b.setPadding(dp(c, 14), dp(c, 6), dp(c, 14), dp(c, 6));
             b.setOnClickListener(l);
-            row.addView(b, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(c, 40)));
+            row.addView(b, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(c, Math.round(40 * k(c)))));
         }
         parent.addView(row);
     }

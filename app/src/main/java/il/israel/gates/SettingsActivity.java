@@ -91,7 +91,8 @@ public class SettingsActivity extends Activity {
         LinearLayout cars = Ui.card(this, root, car ? "🚗 מסך הרכב" : "🚗 הרכבים שלי");
         Switch auto = new Switch(this);
         auto.setText(car ? "🚪 פתיחה אוטומטית – השערים נפתחים לבד כשהרכב מתקרב" : "🚪 פתיחה אוטומטית – כשנכנסים לרכב, השערים נפתחים לבד כשמתקרבים");
-        auto.setTextSize(15);
+        auto.setTextSize(15 * Ui.k(this));
+        auto.setPadding(0, Ui.dp(this, Prefs.carScreen(this) ? 12 : 4), 0, Ui.dp(this, Prefs.carScreen(this) ? 12 : 4));
         auto.setTextColor(Ui.INK);
         auto.setChecked(Prefs.auto(this));
         auto.setOnCheckedChangeListener((v, on) -> { Prefs.setAuto(this, on); if (on) CarCheck.run(this, "הופעל בהגדרות"); else if (LocService.running) LocService.stop(this); });
@@ -99,7 +100,8 @@ public class SettingsActivity extends Activity {
         Ui.note(this, cars, "כבוי = השערים נפתחים רק בכפתור \"פתח\". הסימון \"פתיחה אוטומטית\" ליד כל שער בדף השערים בוחר אילו שערים.");
         Switch scr = new Switch(this);
         scr.setText("🖥️ זה מסך הרכב – לשדר תמיד כשהרכב דלוק (בלי טלפון)");
-        scr.setTextSize(15);
+        scr.setTextSize(15 * Ui.k(this));
+        scr.setPadding(0, Ui.dp(this, Prefs.carScreen(this) ? 12 : 4), 0, Ui.dp(this, Prefs.carScreen(this) ? 12 : 4));
         scr.setTextColor(Ui.INK);
         scr.setChecked(Prefs.carScreen(this));
         scr.setOnCheckedChangeListener((v, on) -> { Prefs.setCarScreen(this, on); if (on) CarCheck.run(this, "הופעל בהגדרות"); else if (LocService.running) LocService.stop(this); });
