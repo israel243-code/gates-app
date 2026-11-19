@@ -14,7 +14,34 @@ import android.content.Intent;
  * רץ: בפתיחת האפליקציה, אחרי עדכון של האפליקציה, ואחרי הפעלה של הטלפון.
  */
 public class CarCheck extends BroadcastReceiver {
-    @Override public void onReceive(Context c, Intent i) { LocalEngine.init(c); run(c, "אחרי " + (Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction()) ? "עדכון" : "הפעלה של הטלפון")); }
+    static final String RECHECK = "il.israel.gates.RECHECK";
+
+    @Override public void onReceive(Context c, Intent i) {
+        LocalEngine.init(c);
+        if (RECHECK.equals(i.getAction())) { // #49: אחרי ירידה מהרכב – בדיקה שקטה כל דקה, חצי שעה
+            long until = c.getSharedPreferences("gates", Context.MODE_PRIVATE).getLong("recheckUntil", 0);
+            if (LocService.running || System.currentTimeMillis() > until) return;
+            run(c, "בדיקה אחרי ירידה מהרכב");
+            next(c);
+            return;
+        }
+        run(c, "אחרי " + (Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction()) ? "עדכון" : "הפעלה של הטלפון"));
+    }
+
+    static void startRecheck(Context c) {
+        c.getSharedPreferences("gates", Context.MODE_PRIVATE).edit().putLong("recheckUntil", System.currentTimeMillis() + 30 * 60000L).apply();
+        next(c);
+    }
+
+    static void stopRecheck(Context c) { c.getSharedPreferences("gates", Context.MODE_PRIVATE).edit().putLong("recheckUntil", 0).apply(); }
+
+    private static void next(Context c) {
+        android.app.AlarmManager am = c.getSystemService(android.app.AlarmManager.class);
+        if (am == null) return;
+        android.app.PendingIntent pi = android.app.PendingIntent.getBroadcast(c, 49, new Intent(c, CarCheck.class).setAction(RECHECK),
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+        am.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, android.os.SystemClock.elapsedRealtime() + 60000L, pi);
+    }
 
     static void run(Context c, String why) {
         if (LocService.running || !Prefs.auto(c) || Prefs.locUrl(c) == null) return;

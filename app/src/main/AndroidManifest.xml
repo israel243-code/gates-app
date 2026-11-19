@@ -62,6 +62,9 @@
             <intent-filter>
                 <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+                <!-- גיבוי (#49, 19/11): חיבור "אודיו של רכב" / דיבורית -->
+                <action android:name="android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED" />
+                <action android:name="android.bluetooth.headset.profile.action.CONNECTION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
 
