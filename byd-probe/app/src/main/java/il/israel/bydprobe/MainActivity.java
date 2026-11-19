@@ -129,9 +129,10 @@ public class MainActivity extends Activity {
                 ui.post(() -> {
                     last = (last == null ? "" : last + "\n\n") + res;
                     report.setText(res);
-                    status.setText(res.startsWith("🧩 סקריפט") ? "✅ הסקריפט הסתיים. עכשיו לחץ \"שלח לשרת\"." : "⚠️ " + res);
+                    status.setText(res.startsWith("🧩 סקריפט") ? "✅ הסקריפט הסתיים." : "⚠️ " + res);
                     modBtn.setEnabled(true); modBtn.setAlpha(1f);
                     sendBtn.setEnabled(true); sendBtn.setAlpha(1f);
+                    if (res.startsWith("🧩 סקריפט")) sendNow(true); // נשלח לשרת אוטומטית
                 });
             }).start();
         });
@@ -272,37 +273,21 @@ public class MainActivity extends Activity {
     }
 
     // ---------- שליחה לשרת: קוד חד-פעמי מגיע לבעלים בוואטסאפ ----------
-    private void askCode() {
+    // 20/11 (הבעלים: "לוותר על הקוד בוואטסאפ"): שליחה ישירה לשרת, בלי קוד
+    private void askCode() { sendNow(false); }
+
+    private void sendNow(boolean auto) {
         if (last == null) return;
         sendBtn.setEnabled(false); sendBtn.setAlpha(0.4f);
-        say("⏳ מבקש קוד…");
+        say("⏳ שולח לשרת…");
+        final String body = last;
         new Thread(() -> {
-            String r = post("code", null, null);
+            String r = post("send", null, body);
             ui.post(() -> {
                 sendBtn.setEnabled(true); sendBtn.setAlpha(1f);
-                if (r == null || !r.contains("\"ok\":true")) { status.setText("⚠️ " + msg(r, "אין תקשורת עם השרת")); return; }
-                status.setText("📲 נשלח קוד לוואטסאפ שלך. הקלד אותו כאן.");
-                codeDialog();
+                status.setText(r != null && r.contains("\"ok\":true") ? "✅ נשלח לשרת. אפשר לסגור." : "⚠️ " + msg(r, "השליחה נכשלה") + (auto ? " – אפשר ללחוץ \"שלח לשרת\"" : ""));
             });
         }).start();
-    }
-
-    private void codeDialog() {
-        EditText in = new EditText(this);
-        in.setInputType(InputType.TYPE_CLASS_NUMBER); in.setTextSize(28); in.setGravity(Gravity.CENTER);
-        new AlertDialog.Builder(this)
-                .setTitle("קוד מוואטסאפ")
-                .setView(in)
-                .setPositiveButton("שלח", (d, w) -> {
-                    String code = in.getText().toString().trim();
-                    say("⏳ שולח…");
-                    new Thread(() -> {
-                        String r = post("send", code, last);
-                        say(r != null && r.contains("\"ok\":true") ? "✅ נשלח לשרת. אפשר לסגור." : "⚠️ " + msg(r, "השליחה נכשלה"));
-                    }).start();
-                })
-                .setNegativeButton("ביטול", null)
-                .show();
     }
 
     private static String msg(String json, String def) {
