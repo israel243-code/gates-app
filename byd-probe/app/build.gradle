@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application'
+}
+
+def run = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+
+android {
+    namespace 'il.israel.bydprobe'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'il.israel.bydprobe'
+        minSdk 24
+        // יעד נמוך בכוונה: במערכת הרכב (DiLink) מאפשר לראות את כל החבילות ולכתוב לתיקיית ההורדות
+        targetSdk 28
+        versionCode run
+        versionName "0." + run
+    }
+
+    // חתימה קבועה כדי שכל בנייה תותקן מעל הקודמת. אפליקציית בדיקה בלבד (קוראת, לא שולטת)
+    signingConfigs {
+        rel {
+            storeFile file('../signing/probe.p12')
+            storeType 'pkcs12'
+            storePassword 'bydprobe'
+            keyAlias 'probe'
+            keyPassword 'bydprobe'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.rel
+        }
+    }
+
+    lint { checkReleaseBuilds false; abortOnError false }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
