@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
         root.setPadding(dp(24), dp(20), dp(24), dp(12));
 
         TextView title = new TextView(this);
-        title.setText("🚗 הרכב שלי · בדיקה והתקנות");
+        title.setText("🚗 הרכב שלי");
         title.setTextSize(30); title.setTypeface(Typeface.DEFAULT_BOLD); title.setTextColor(Color.WHITE);
         root.addView(title);
 
@@ -88,7 +88,7 @@ public class MainActivity extends Activity {
 
         upd = btn("🔄 בדוק עדכונים", Color.rgb(71, 85, 105));
         upd.setOnClickListener(v -> {
-            if (newer) { openUrl("https://isrnb.duckdns.org/car"); return; }
+            if (newer) { Installer.install(this, Installer.SELF, "עדכון ל\"הרכב שלי\""); return; }
             upd.setText("⏳ בודק…"); checkUpdate(true);
         });
         root.addView(upd, 2, new LinearLayout.LayoutParams(-1, dp(64)));
@@ -98,7 +98,7 @@ public class MainActivity extends Activity {
         inst.setOrientation(LinearLayout.HORIZONTAL);
         inst.setPadding(0, dp(12), 0, 0);
         gatesBtn = btn("", Color.rgb(13, 148, 136));
-        gatesBtn.setOnClickListener(v -> openUrl("https://isrnb.duckdns.org/app"));
+        gatesBtn.setOnClickListener(v -> Installer.install(this, Installer.GATES, "אפליקציית השערים"));
         Button carApp = btn("🚗 אפליקציית הרכב – בקרוב", Color.rgb(51, 65, 85));
         carApp.setEnabled(false); carApp.setAlpha(0.6f);
         inst.addView(gatesBtn, new LinearLayout.LayoutParams(0, dp(64), 1));
