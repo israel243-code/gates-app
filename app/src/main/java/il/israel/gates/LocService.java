@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 public class LocService extends Service implements LocationListener {
     static final String CH = "gates";
     static volatile boolean running = false;
+    static volatile double lastLat, lastLon; static volatile long lastAt;
     static volatile String state = "";
 
     private LocationManager lm;
@@ -125,6 +126,7 @@ public class LocService extends Service implements LocationListener {
         lastSent = now;
         if (lastSent == 0 || firstFix) { firstFix = false; LocalEngine.log("📡 מיקום ראשון מה-GPS" + (l.hasAccuracy() ? " (דיוק " + Math.round(l.getAccuracy()) + " מ׳)" : "")); }
         if (l.hasAccuracy() && l.getAccuracy() > 80) { state = "GPS חלש"; if (Prefs.local(this)) LocalEngine.log("GPS חלש (" + Math.round(l.getAccuracy()) + " מ׳) – מחכה"); return; }
+        lastLat = l.getLatitude(); lastLon = l.getLongitude(); lastAt = now; // 🗺️ למפה בדף, גם בחישוב בטלפון (20/11)
         if (Prefs.local(this)) { // חישוב בטלפון: המיקום לא יוצא מהטלפון
             if (engine == null) engine = new LocalEngine(this);
             final double la = l.getLatitude(), lo = l.getLongitude();

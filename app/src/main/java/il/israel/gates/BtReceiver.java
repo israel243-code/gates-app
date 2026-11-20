@@ -25,7 +25,8 @@ public class BtReceiver extends BroadcastReceiver {
         }
         boolean profile = act.endsWith("profile.action.CONNECTION_STATE_CHANGED");
         if (profile) LocalEngine.log("ℹ️ בלוטות' " + kind + " (" + name + "): מצב " + i.getIntExtra("android.bluetooth.profile.extra.STATE", -1) + (LocService.running ? ", כבר משדר" : ""));
-        if (profile && (i.getIntExtra("android.bluetooth.profile.extra.STATE", -1) != 2 || LocService.running)) return; // גיבוי: רק "התחבר", ורק אם עוד לא משדרים
+        int pst = i.getIntExtra("android.bluetooth.profile.extra.STATE", -1);
+        if (profile && ((pst != 1 && pst != 2) || LocService.running)) return; // 20/11: כבר ב"מתחבר" (1) – הרכב מתחבר עד 40 שניות, והשידור מתחיל מיד
         if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(act) || profile) {
             if (LocService.running) { LocalEngine.log("ℹ️ הרכב התחבר (" + name + ") – כבר משדר"); return; }
             CarCheck.stopRecheck(c);

@@ -320,6 +320,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void stop() { runOnUiThread(() -> LocService.stop(MainActivity.this)); }
         @JavascriptInterface public String cars() { return String.valueOf(Prefs.cars(MainActivity.this).size()); }
         @JavascriptInterface public boolean auto() { return Prefs.auto(MainActivity.this); }
+        @JavascriptInterface public String lastFix() { long a = (System.currentTimeMillis() - LocService.lastAt) / 1000; return LocService.lastAt == 0 || !LocService.running ? "" : "{\"lat\":" + LocService.lastLat + ",\"lon\":" + LocService.lastLon + ",\"age\":" + a + "}"; }
         @JavascriptInterface public boolean carScreen() { return Prefs.carScreen(MainActivity.this); }
         @JavascriptInterface public void pairScan() { runOnUiThread(() -> Pair.scan(MainActivity.this)); }
         @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> Updater.check(MainActivity.this, false)); }
