@@ -86,6 +86,7 @@ public class LocService extends Service implements LocationListener {
                 return START_NOT_STICKY;
             }
             running = true;
+            ClipAgent.start(this); // 🎥 במסך הרכב בלבד: רשימת קליפים ושליפה לפי בקשה (20/11)
             state = "מחכה ל-GPS";
             PowerManager pm = getSystemService(PowerManager.class);
             wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gates:loc");
@@ -182,6 +183,7 @@ public class LocService extends Service implements LocationListener {
 
     @Override
     public void onDestroy() {
+        ClipAgent.stop();
         Notify.service(this, "⏹️ השידור נעצר");
         LocalEngine.log("⏹️ השידור נעצר" + (state == null || state.isEmpty() ? "" : " (" + state + ")"));
         final android.content.Context ctx = getApplicationContext(); new Thread(() -> LocalEngine.upload(ctx)).start();

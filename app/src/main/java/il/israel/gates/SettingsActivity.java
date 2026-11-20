@@ -68,8 +68,9 @@ public class SettingsActivity extends Activity {
         boolean car = Prefs.carScreen(this); // 🖥️ מסך הרכב: בלי בלוטות' ובלי חיסכון סוללה (19/11, הבעלים: "לא רלוונטי ברכב")
         boolean bt = car || Build.VERSION.SDK_INT < 31 || has(Manifest.permission.BLUETOOTH_CONNECT);
         boolean batt = car || getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
-        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? 0 : (bt ? 1 : 0) + (batt ? 1 : 0));
-        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך " + (car ? 3 : 5));
+        boolean files = !car || Build.VERSION.SDK_INT > 32 || has(Manifest.permission.READ_EXTERNAL_STORAGE); // 🎥 קליפים מה-DVR (מסך הרכב)
+        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? (files ? 1 : 0) : (bt ? 1 : 0) + (batt ? 1 : 0));
+        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך " + (car ? 4 : 5));
         Ui.step(this, perm, 1, fine, "מיקום", "כדי לדעת כשאתה מתקרב לשער", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 2));
         Ui.step(this, perm, 2, bg, "מיקום כל הזמן", Build.VERSION.SDK_INT >= 30 ? "בהגדרות: מיקום ← \"לאפשר כל הזמן\"" : "נדרש לשידור ברקע", "פתח", v -> {
@@ -80,6 +81,8 @@ public class SettingsActivity extends Activity {
                 v -> requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 1));
         Ui.step(this, perm, car ? 3 : 4, nt, "התראות", "רואים מתי משדרים ומתי שער נפתח", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 4));
+        if (car) Ui.step(this, perm, 4, files, "קבצים", "כדי לשלוח לטלפון קליפים מהמצלמות של הרכב", "אפשר",
+                v -> requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 5));
         if (!car) Ui.step(this, perm, 5, batt, "בלי חיסכון סוללה", "אחרת אנדרואיד חוסם התחלה ברקע", "פתח", v -> {
             try { startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); }
             catch (Exception e) { openAppSettings(); }
