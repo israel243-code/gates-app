@@ -38,6 +38,7 @@ public class WorkoutService extends Service implements LocationListener {
     static volatile float acc = -1; // דיוק אחרון (מ׳) – להצגה כשמחכים ל-GPS
     static final ArrayList<double[]> PTS = new ArrayList<>();
     private static Location last;
+    private static volatile boolean fusedSeen = false;
     private LocationManager lm;
     private PowerManager.WakeLock wl;
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -74,7 +75,7 @@ public class WorkoutService extends Service implements LocationListener {
             if (Build.VERSION.SDK_INT >= 29) startForeground(7, notif("מתחיל…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION); else startForeground(7, notif("מתחיל…"));
         } catch (Exception e) { msg = "⚠️ אין הרשאת מיקום – אשר מיקום בהגדרות"; stopSelf(); return START_NOT_STICKY; }
         synchronized (PTS) { PTS.clear(); }
-        on = true; paused = false; gps = false; dist = 0; acc = -1; start = System.currentTimeMillis(); pausedMs = 0; last = null;
+        on = true; paused = false; gps = false; dist = 0; acc = -1; fusedSeen = false; start = System.currentTimeMillis(); pausedMs = 0; last = null;
         try { PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE); wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gates:workout"); wl.acquire(6 * 3600 * 1000L); } catch (Exception e) { /* בלי */ }
         lm = (LocationManager) getSystemService(LOCATION_SERVICE);
         try { lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 3, this); } catch (SecurityException e) { msg = "⚠️ אין הרשאת מיקום"; stopSelf(); return START_NOT_STICKY; }
@@ -85,6 +86,7 @@ public class WorkoutService extends Service implements LocationListener {
 
     @Override public void onLocationChanged(Location l) {
         if (!on || paused) return;
+        if ("fused".equals(l.getProvider())) fusedSeen = true; else if (fusedSeen) return; // שני מקורות מיקום – משתמשים באחד, כדי שהמרחק לא יתנפח מקפיצות ביניהם
         if (l.hasAccuracy()) acc = l.getAccuracy();
         if (l.hasAccuracy() && l.getAccuracy() > 30) return; // GPS לא מדויק – מחכים (21/11: 30 מ׳; היה 25)
         gps = true;
