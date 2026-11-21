@@ -48,6 +48,7 @@
 
         <activity android:name=".SettingsActivity" android:exported="false" />
 
+        <service android:name=".WorkoutService" android:exported="false" android:foregroundServiceType="location" />
         <service
             android:name=".LocService"
             android:exported="false"

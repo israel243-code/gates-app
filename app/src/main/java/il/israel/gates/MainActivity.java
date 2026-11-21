@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         Ui.theme(this);
         LocalEngine.init(this);
+        { final android.content.Context x = getApplicationContext(); new Thread(() -> WorkoutService.sendPending(x)).start(); } // 🏃 אימונים שלא נשלחו
         take(getIntent());
         show();
         Updater.check(this, true); // פעם ביום: חלון רק אם יש גרסה חדשה
@@ -340,6 +341,11 @@ public class MainActivity extends Activity {
         }
         /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
         /** 📤 "שלח עכשיו לבדיקה" בדשבורד: היומן שעוד לא נשלח – לשרת מיד */
+        // 🏃 אימון (21/11) – דף "הכושר שלי" בדשבורד
+        @JavascriptInterface public void wkStart(String t) { runOnUiThread(() -> WorkoutService.begin(MainActivity.this, t)); }
+        @JavascriptInterface public void wkPause() { WorkoutService.togglePause(); }
+        @JavascriptInterface public void wkStop() { runOnUiThread(() -> WorkoutService.finish(MainActivity.this)); }
+        @JavascriptInterface public String wkState() { return WorkoutService.state(MainActivity.this); }
         @JavascriptInterface public void uploadLog() { LocalEngine.log("📤 נשלח לבדיקה מהדשבורד"); final android.content.Context x = getApplicationContext(); new Thread(() -> LocalEngine.upload(x)).start(); }
         /** מצב קצר לשורת המצב בראש הדף: האם משדר, למה לא, ומה קרה אחרון */
         @JavascriptInterface public String lastLog() { synchronized (LocalEngine.LOG) { return LocalEngine.LOG.isEmpty() ? "" : LocalEngine.LOG.get(0); } }
