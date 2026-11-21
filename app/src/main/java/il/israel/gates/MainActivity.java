@@ -264,12 +264,14 @@ public class MainActivity extends Activity {
         ws.setGeolocationEnabled(true);
         ws.setUserAgentString(ws.getUserAgentString() + " GatesApp/1"); // הדף מזהה שזו האפליקציה (מסתיר שידור מהדפדפן, מציג "הגדרות")
         web.addJavascriptInterface(new Bridge(), "GatesApp");
-        final String host = Uri.parse(start).getHost();
+        final String host = Uri.parse(start).getHost(); siteHost = host;
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, android.webkit.WebResourceError e) {
                 if (r.isForMainFrame()) showOffline(); // בלי קליטה: מסך בעברית, בלי להציג את הקישור הסודי (18/11)
             }
+            @Override
+            public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) { try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
@@ -319,25 +321,27 @@ public class MainActivity extends Activity {
     }
 
     /** פונקציות שהדף יכול לקרוא: window.GatesApp.openSettings() וכו'. */
+    volatile String siteHost = null, pageHost = ""; // 🔒 A4 (21/11): הגשר פועל רק כשהדף הראשי הוא מהאתר שלנו
     class Bridge {
-        @JavascriptInterface public void openSettings() { runOnUiThread(() -> startActivity(new Intent(MainActivity.this, SettingsActivity.class))); }
+        private boolean ok() { return siteHost != null && siteHost.equals(pageHost); }
+        @JavascriptInterface public void openSettings() { if (!ok()) return; runOnUiThread(() -> startActivity(new Intent(MainActivity.this, SettingsActivity.class))); }
         @JavascriptInterface public boolean broadcasting() { return LocService.running; }
         @JavascriptInterface public String state() { return LocService.state; }
-        @JavascriptInterface public void start(int minutes) { runOnUiThread(() -> LocService.start(MainActivity.this, "ידני", Math.max(5, Math.min(minutes, 240)))); }
-        @JavascriptInterface public void stop() { runOnUiThread(() -> LocService.stop(MainActivity.this)); }
+        @JavascriptInterface public void start(int minutes) { if (!ok()) return; runOnUiThread(() -> LocService.start(MainActivity.this, "ידני", Math.max(5, Math.min(minutes, 240)))); }
+        @JavascriptInterface public void stop() { if (!ok()) return; runOnUiThread(() -> LocService.stop(MainActivity.this)); }
         @JavascriptInterface public String cars() { return String.valueOf(Prefs.cars(MainActivity.this).size()); }
         @JavascriptInterface public boolean auto() { return Prefs.auto(MainActivity.this); }
         @JavascriptInterface public String lastFix() { long a = (System.currentTimeMillis() - LocService.lastAt) / 1000; return LocService.lastAt == 0 || !LocService.running ? "" : "{\"lat\":" + LocService.lastLat + ",\"lon\":" + LocService.lastLon + ",\"age\":" + a + "}"; }
         @JavascriptInterface public boolean carScreen() { return Prefs.carScreen(MainActivity.this); }
-        @JavascriptInterface public void pairScan() { runOnUiThread(() -> Pair.scan(MainActivity.this)); }
-        @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> Updater.check(MainActivity.this, false)); }
+        @JavascriptInterface public void pairScan() { if (!ok()) return; runOnUiThread(() -> Pair.scan(MainActivity.this)); }
+        @JavascriptInterface public void checkUpdate() { if (!ok()) return; runOnUiThread(() -> Updater.check(MainActivity.this, false)); }
         @JavascriptInterface public String version() { return Updater.currentName(MainActivity.this); }
         /** דף הכניסה עם מספר טלפון (/join) מחזיר את הקישור האישי – נשמר כמו קישור שנלחץ בוואטסאפ (18/11) */
-        @JavascriptInterface public void saveLink(String u) { if (Prefs.valid(u)) runOnUiThread(() -> { Prefs.setUrl(MainActivity.this, u); show(); }); }
+        @JavascriptInterface public void saveLink(String u) { if (!ok()) return; if (Prefs.valid(u)) runOnUiThread(() -> { Prefs.setUrl(MainActivity.this, u); show(); }); }
         /** דף השערים: המשתמש שינה הגדרה (מיקום / מרחק / שערים) – הטלפון יעדכן את הנתונים השמורים בנסיעה הבאה */
-        @JavascriptInterface public void gatesChanged() { getSharedPreferences("gates", MODE_PRIVATE).edit().putBoolean("stDirty", true).apply(); }
+        @JavascriptInterface public void gatesChanged() { if (!ok()) return; getSharedPreferences("gates", MODE_PRIVATE).edit().putBoolean("stDirty", true).apply(); }
         /** 📧 קישור מייל מהדף: ישר לאפליקציית Gmail (בלי לעבור דרך הדפדפן הפנימי) – 18/11 */
-        @JavascriptInterface public void openMail(String url) {
+        @JavascriptInterface public void openMail(String url) { if (!ok()) return;
             runOnUiThread(() -> {
                 try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage("com.google.android.gm")); return; } catch (Exception e) { /* Gmail לא מקבל את הקישור */ }
                 Intent g = getPackageManager().getLaunchIntentForPackage("com.google.android.gm");
@@ -350,26 +354,26 @@ public class MainActivity extends Activity {
         // 🏃 אימון (21/11) – דף "הכושר שלי" בדשבורד
         @JavascriptInterface public String wkTrack(int from) { return WorkoutService.track(from); } // 🗺️ המסלול של האימון הנוכחי (מנקודה from)
         // 📅 יומן גוגל / 🔎 גוגל (פיננסים) – באפליקציה עצמה, לא באתר (21/11)
-        @JavascriptInterface public void calendar() { runOnUiThread(() -> {
+        @JavascriptInterface public void calendar() { if (!ok()) return; runOnUiThread(() -> {
             try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/" + System.currentTimeMillis())).setPackage("com.google.android.calendar")); return; } catch (Exception e) { /* אין */ }
             Intent g = getPackageManager().getLaunchIntentForPackage("com.google.android.calendar"); if (g != null) { startActivity(g); return; }
             try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://calendar.google.com"))); } catch (Exception e) { /* אין */ } }); }
-        @JavascriptInterface public void gsearch(String q) { final String qq = q == null ? "" : q.length() > 120 ? q.substring(0, 120) : q; runOnUiThread(() -> {
+        @JavascriptInterface public void gsearch(String q) { if (!ok()) return; final String qq = q == null ? "" : q.length() > 120 ? q.substring(0, 120) : q; runOnUiThread(() -> {
             try { startActivity(new Intent(Intent.ACTION_WEB_SEARCH).putExtra(android.app.SearchManager.QUERY, qq).setPackage("com.google.android.googlequicksearchbox")); return; } catch (Exception e) { /* אין אפליקציית גוגל */ }
             try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(qq)))); } catch (Exception e) { /* אין */ } }); }
-        @JavascriptInterface public void wkStart(String t) { runOnUiThread(() -> WorkoutService.begin(MainActivity.this, t)); }
-        @JavascriptInterface public void wkPause() { WorkoutService.togglePause(); }
-        @JavascriptInterface public void wkStop() { runOnUiThread(() -> WorkoutService.finish(MainActivity.this)); }
+        @JavascriptInterface public void wkStart(String t) { if (!ok()) return; runOnUiThread(() -> WorkoutService.begin(MainActivity.this, t)); }
+        @JavascriptInterface public void wkPause() { if (!ok()) return; WorkoutService.togglePause(); }
+        @JavascriptInterface public void wkStop() { if (!ok()) return; runOnUiThread(() -> WorkoutService.finish(MainActivity.this)); }
         @JavascriptInterface public String wkState() { return WorkoutService.state(MainActivity.this); }
-        @JavascriptInterface public void uploadLog() { LocalEngine.log("📤 נשלח לבדיקה מהדשבורד"); final android.content.Context x = getApplicationContext(); new Thread(() -> LocalEngine.upload(x)).start(); }
+        @JavascriptInterface public void uploadLog() { if (!ok()) return; LocalEngine.log("📤 נשלח לבדיקה מהדשבורד"); final android.content.Context x = getApplicationContext(); new Thread(() -> LocalEngine.upload(x)).start(); }
         /** מצב קצר לשורת המצב בראש הדף: האם משדר, למה לא, ומה קרה אחרון */
         @JavascriptInterface public String lastLog() { synchronized (LocalEngine.LOG) { return LocalEngine.LOG.isEmpty() ? "" : LocalEngine.LOG.get(0); } }
         @JavascriptInterface public boolean local() { return Prefs.local(MainActivity.this); }
-        @JavascriptInterface public void peekUpdate() { Updater.peek(); }
+        @JavascriptInterface public void peekUpdate() { if (!ok()) return; Updater.peek(); }
         @JavascriptInterface public String updateAvail() { int k = Updater.known; return k > Updater.current(MainActivity.this) ? "עדכון " + Math.max(1, k - Updater.BASE) : ""; }
-        @JavascriptInterface public void installUpdate() { runOnUiThread(() -> Updater.install(MainActivity.this)); }
+        @JavascriptInterface public void installUpdate() { if (!ok()) return; runOnUiThread(() -> Updater.install(MainActivity.this)); }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
-        @JavascriptInterface public void auth(String id) {
+        @JavascriptInterface public void auth(String id) { if (!ok()) return;
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");
             runOnUiThread(() -> Lock.auth(MainActivity.this, "פתיחת שער",
                     () -> { if (web != null) web.evaluateJavascript("window.__gaAuth && __gaAuth('" + i + "', true)", null); },

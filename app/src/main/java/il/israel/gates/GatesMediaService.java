@@ -44,6 +44,7 @@ public class GatesMediaService extends MediaBrowserService {
         session.setCallback(new MediaSession.Callback() {
             @Override public void onPlayFromMediaId(String id, Bundle extras) {
                 // 🔒 21/11: רק אנדרואיד אוטו / המערכת / האפליקציה עצמה רשאים לפתוח שער (לפני כן כל אפליקציה בטלפון יכלה)
+                if (android.os.Build.VERSION.SDK_INT < 28) { show("פתיחה דרך הנגן – מאנדרואיד 9 ומעלה", PlaybackState.STATE_ERROR); return; } // 🔒 A6 (21/11): באנדרואיד 8 אי אפשר לדעת מי מבקש
                 if (android.os.Build.VERSION.SDK_INT >= 28) { android.media.session.MediaSessionManager.RemoteUserInfo ci = session.getCurrentControllerInfo(); if (ci == null || !trusted(ci.getPackageName(), ci.getUid())) { show("⛔ לא מורשה", PlaybackState.STATE_ERROR); return; } }
                 open(id);
             }

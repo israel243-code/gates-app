@@ -149,13 +149,14 @@ final class LocalEngine {
                 HttpURLConnection h = (HttpURLConnection) new URL(url("open")).openConnection();
                 h.setConnectTimeout(8000); h.setReadTimeout(20000); h.setRequestMethod("POST"); h.setDoOutput(true);
                 h.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); h.setRequestProperty("User-Agent", "GatesApp/1");
-                try (OutputStream o = h.getOutputStream()) { o.write(("gate=" + Uri.encode(g) + "&auto=1").getBytes(StandardCharsets.UTF_8)); }
+                try (OutputStream o = h.getOutputStream()) { o.write(("gate=" + Uri.encode(g) + "&auto=1&cv=" + Uri.encode(st == null ? "" : st.optString("cv", ""))).getBytes(StandardCharsets.UTF_8)); // A8: גרסת ההגדרות }
                 code = h.getResponseCode();
                 try (InputStream in = code < 400 ? h.getInputStream() : h.getErrorStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { if (s.hasNext()) body = s.next(); }
                 catch (Exception e) { /* בלי גוף */ }
             } catch (Exception e) { lastOpen.put(g, now - (long) (gap * 60000) + 30000); state = "אין אינטרנט"; log("⚠️ אין אינטרנט – ניסיון חוזר בעוד חצי דקה"); continue; } // ניסיון חוזר אחרי חצי דקה
             JSONObject r = new JSONObject(body.isEmpty() ? "{}" : body);
             if (code == 403 && "expired".equals(r.optString("r"))) return "expired";
+            if (code == 409) { sp.edit().putBoolean("stDirty", true).apply(); log("🔄 הגדרות השערים השתנו בשרת – מרענן ומנסה שוב"); lastOpen.put(g, now - (long) (gap * 60000) + 3000); continue; } // A8
             if (code == 403) { sp.edit().putBoolean("stDirty", true).apply(); state = r.optString("r", "אין הרשאה לפתוח"); lastOpen.put(g, now - (long) (gap * 60000) + 60000); continue; }
             log((r.optBoolean("ok") ? "✅ " : "⚠️ ") + r.optString("r", "code " + code));
             Notify.gate(c, g, r.optBoolean("ok"), r.optString("r", ""));
