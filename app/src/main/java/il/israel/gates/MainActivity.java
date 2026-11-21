@@ -300,6 +300,11 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
+            // 21/11: חלונות "אישור / ביטול" של הדף – חלון של האפליקציה, בלי "בדף שבכתובת ..." (הבעלים: "לא נעים בעין")
+            @Override public boolean onJsAlert(WebView v, String url, String msg, android.webkit.JsResult r) {
+                new android.app.AlertDialog.Builder(MainActivity.this).setMessage(msg).setPositiveButton("הבנתי", (d, w) -> r.confirm()).setOnCancelListener((d) -> r.confirm()).show(); return true; }
+            @Override public boolean onJsConfirm(WebView v, String url, String msg, android.webkit.JsResult r) {
+                new android.app.AlertDialog.Builder(MainActivity.this).setMessage(msg).setPositiveButton("אישור", (d, w) -> r.confirm()).setNegativeButton("ביטול", (d, w) -> r.cancel()).setOnCancelListener((d) -> r.cancel()).show(); return true; }
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
                 if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) { cb.invoke(origin, true, false); return; }
@@ -343,6 +348,15 @@ public class MainActivity extends Activity {
         /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
         /** 📤 "שלח עכשיו לבדיקה" בדשבורד: היומן שעוד לא נשלח – לשרת מיד */
         // 🏃 אימון (21/11) – דף "הכושר שלי" בדשבורד
+        @JavascriptInterface public String wkTrack(int from) { return WorkoutService.track(from); } // 🗺️ המסלול של האימון הנוכחי (מנקודה from)
+        // 📅 יומן גוגל / 🔎 גוגל (פיננסים) – באפליקציה עצמה, לא באתר (21/11)
+        @JavascriptInterface public void calendar() { runOnUiThread(() -> {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/" + System.currentTimeMillis())).setPackage("com.google.android.calendar")); return; } catch (Exception e) { /* אין */ }
+            Intent g = getPackageManager().getLaunchIntentForPackage("com.google.android.calendar"); if (g != null) { startActivity(g); return; }
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://calendar.google.com"))); } catch (Exception e) { /* אין */ } }); }
+        @JavascriptInterface public void gsearch(String q) { final String qq = q == null ? "" : q.length() > 120 ? q.substring(0, 120) : q; runOnUiThread(() -> {
+            try { startActivity(new Intent(Intent.ACTION_WEB_SEARCH).putExtra(android.app.SearchManager.QUERY, qq).setPackage("com.google.android.googlequicksearchbox")); return; } catch (Exception e) { /* אין אפליקציית גוגל */ }
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(qq)))); } catch (Exception e) { /* אין */ } }); }
         @JavascriptInterface public void wkStart(String t) { runOnUiThread(() -> WorkoutService.begin(MainActivity.this, t)); }
         @JavascriptInterface public void wkPause() { WorkoutService.togglePause(); }
         @JavascriptInterface public void wkStop() { runOnUiThread(() -> WorkoutService.finish(MainActivity.this)); }

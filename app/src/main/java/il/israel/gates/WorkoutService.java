@@ -35,6 +35,7 @@ public class WorkoutService extends Service implements LocationListener {
     static volatile String type = "walk", msg = "";
     static volatile long start = 0, pausedMs = 0, pauseAt = 0;
     static volatile double dist = 0;
+    static volatile float acc = -1; // דיוק אחרון (מ׳) – להצגה כשמחכים ל-GPS
     static final ArrayList<double[]> PTS = new ArrayList<>();
     private static Location last;
     private LocationManager lm;
@@ -56,9 +57,10 @@ public class WorkoutService extends Service implements LocationListener {
     }
     static void finish(Context c) { if (on) c.stopService(new Intent(c, WorkoutService.class)); }
 
+    static String track(int from) { StringBuilder sb = new StringBuilder("["); synchronized (PTS) { for (int k = Math.max(0, from); k < PTS.size(); k++) { double[] p = PTS.get(k); if (sb.length() > 1) sb.append(','); sb.append(String.format(Locale.US, "[%.6f,%.6f]", p[0], p[1])); } } return sb.append("]").toString(); }
     static String state(Context c) {
         return "{\"on\":" + on + ",\"paused\":" + paused + ",\"gps\":" + gps + ",\"type\":\"" + type + "\",\"dur\":" + dur() + ",\"dist\":" + Math.round(dist) +
-            ",\"pts\":" + PTS.size() + ",\"pending\":" + pendingCount(c) + ",\"msg\":\"" + msg.replace("\"", "'") + "\"}";
+            ",\"acc\":" + Math.round(acc) + ",\"pts\":" + PTS.size() + ",\"pending\":" + pendingCount(c) + ",\"msg\":\"" + msg.replace("\"", "'") + "\"}";
     }
 
     @Override public IBinder onBind(Intent i) { return null; }
@@ -72,17 +74,19 @@ public class WorkoutService extends Service implements LocationListener {
             if (Build.VERSION.SDK_INT >= 29) startForeground(7, notif("מתחיל…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION); else startForeground(7, notif("מתחיל…"));
         } catch (Exception e) { msg = "⚠️ אין הרשאת מיקום – אשר מיקום בהגדרות"; stopSelf(); return START_NOT_STICKY; }
         synchronized (PTS) { PTS.clear(); }
-        on = true; paused = false; gps = false; dist = 0; start = System.currentTimeMillis(); pausedMs = 0; last = null;
+        on = true; paused = false; gps = false; dist = 0; acc = -1; start = System.currentTimeMillis(); pausedMs = 0; last = null;
         try { PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE); wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gates:workout"); wl.acquire(6 * 3600 * 1000L); } catch (Exception e) { /* בלי */ }
         lm = (LocationManager) getSystemService(LOCATION_SERVICE);
         try { lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 3, this); } catch (SecurityException e) { msg = "⚠️ אין הרשאת מיקום"; stopSelf(); return START_NOT_STICKY; }
+        try { if (Build.VERSION.SDK_INT >= 31 && lm.getAllProviders().contains("fused")) lm.requestLocationUpdates("fused", 2000, 3, this); } catch (Exception e) { /* בלי */ } // 21/11: גם מיקום משולב – מתחיל מהר יותר
         h.postDelayed(tick, 5000);
         return START_NOT_STICKY;
     }
 
     @Override public void onLocationChanged(Location l) {
         if (!on || paused) return;
-        if (l.hasAccuracy() && l.getAccuracy() > 25) return; // GPS לא מדויק – מחכים
+        if (l.hasAccuracy()) acc = l.getAccuracy();
+        if (l.hasAccuracy() && l.getAccuracy() > 30) return; // GPS לא מדויק – מחכים (21/11: 30 מ׳; היה 25)
         gps = true;
         if (last != null) {
             float d = last.distanceTo(l); long dt = Math.max(1, (l.getTime() - last.getTime()) / 1000);
