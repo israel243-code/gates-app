@@ -56,7 +56,6 @@ public class GatesMediaService extends MediaBrowserService {
 
     @Override public void onDestroy() { if (session != null) session.release(); super.onDestroy(); }
 
-    @Override
     // מי רשאי להתחבר לנגן: אנדרואיד אוטו, Google (העוזר), ממשק המערכת, תהליכי המערכת והאפליקציה עצמה
     private static final java.util.Set<String> OK_PKGS = new java.util.HashSet<>(java.util.Arrays.asList("com.google.android.projection.gearhead", "com.google.android.googlequicksearchbox", "com.google.android.carassistant", "com.android.systemui", "com.android.bluetooth", "com.google.android.gms"));
     private boolean trusted(String pkg, int uid) {
@@ -70,6 +69,7 @@ public class GatesMediaService extends MediaBrowserService {
         } catch (Exception e) { return false; }
     }
 
+    @Override
     public BrowserRoot onGetRoot(String pkg, int uid, Bundle hints) {
         if (!trusted(pkg, uid)) return null; // 🔒 21/11
         // תצוגת רשת (אריחים גדולים) במקום רשימת שירים (הבעלים, 18/11: "לא אהבתי שזה כמו נגן")
