@@ -42,7 +42,11 @@ public class GatesMediaService extends MediaBrowserService {
         super.onCreate();
         session = new MediaSession(this, "gates");
         session.setCallback(new MediaSession.Callback() {
-            @Override public void onPlayFromMediaId(String id, Bundle extras) { open(id); }
+            @Override public void onPlayFromMediaId(String id, Bundle extras) {
+                // 🔒 21/11: רק אנדרואיד אוטו / המערכת / האפליקציה עצמה רשאים לפתוח שער (לפני כן כל אפליקציה בטלפון יכלה)
+                if (android.os.Build.VERSION.SDK_INT >= 28) { android.media.session.MediaSessionManager.RemoteUserInfo ci = session.getCurrentControllerInfo(); if (ci == null || !trusted(ci.getPackageName(), ci.getUid())) { show("⛔ לא מורשה", PlaybackState.STATE_ERROR); return; } }
+                open(id);
+            }
             @Override public void onPlay() { show("בחר שער מהרשימה", PlaybackState.STATE_PAUSED); }
         });
         setSessionToken(session.getSessionToken());
@@ -53,7 +57,21 @@ public class GatesMediaService extends MediaBrowserService {
     @Override public void onDestroy() { if (session != null) session.release(); super.onDestroy(); }
 
     @Override
+    // מי רשאי להתחבר לנגן: אנדרואיד אוטו, Google (העוזר), ממשק המערכת, תהליכי המערכת והאפליקציה עצמה
+    private static final java.util.Set<String> OK_PKGS = new java.util.HashSet<>(java.util.Arrays.asList("com.google.android.projection.gearhead", "com.google.android.googlequicksearchbox", "com.google.android.carassistant", "com.android.systemui", "com.android.bluetooth", "com.google.android.gms"));
+    private boolean trusted(String pkg, int uid) {
+        if (uid == android.os.Process.myUid() || uid == android.os.Process.SYSTEM_UID || uid == 1002 /* bluetooth */) return true;
+        if (pkg == null || !OK_PKGS.contains(pkg)) return false;
+        try { // החבילה חייבת להיות של אותו uid וחתומה כאפליקציית מערכת / של גוגל (מונע אפליקציה שמתחזה בשם)
+            String[] ps = getPackageManager().getPackagesForUid(uid); boolean same = false; if (ps != null) for (String p : ps) if (pkg.equals(p)) same = true;
+            if (!same) return false;
+            android.content.pm.ApplicationInfo ai = getPackageManager().getApplicationInfo(pkg, 0);
+            return (ai.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 || getPackageManager().checkSignatures("android", pkg) == android.content.pm.PackageManager.SIGNATURE_MATCH || "com.google.android.projection.gearhead".equals(pkg);
+        } catch (Exception e) { return false; }
+    }
+
     public BrowserRoot onGetRoot(String pkg, int uid, Bundle hints) {
+        if (!trusted(pkg, uid)) return null; // 🔒 21/11
         // תצוגת רשת (אריחים גדולים) במקום רשימת שירים (הבעלים, 18/11: "לא אהבתי שזה כמו נגן")
         Bundle x = new Bundle();
         x.putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true);
