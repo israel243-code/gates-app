@@ -22,7 +22,7 @@ final class Prefs {
 
     /** מצב מנהל: קישור הדשבורד של הבעלים (נכנסים אליו עם קוד מוואטסאפ, כמו בדפדפן) */
     static String admin(Context c) { return p(c).getString("admin", ""); }
-    static void setAdmin(Context c, String u) { p(c).edit().putString("admin", u == null ? "" : u.trim()).apply(); }
+    static void setAdmin(Context c, String u) { p(c).edit().putString("admin", u == null ? "" : u.trim()).commit(); Brand.apply(c); }
     static boolean adminView(Context c) { return p(c).getBoolean("adminView", true); }
     static void setAdminView(Context c, boolean b) { p(c).edit().putBoolean("adminView", b).apply(); }
     static boolean isDash(String s) {

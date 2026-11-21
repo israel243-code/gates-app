@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         Ui.theme(this);
         LocalEngine.init(this);
+        Brand.apply(this); // 21/11: "העוזר שלי" למנהל
         { final android.content.Context x = getApplicationContext(); new Thread(() -> WorkoutService.sendPending(x)).start(); } // 🏃 אימונים שלא נשלחו
         take(getIntent());
         show();

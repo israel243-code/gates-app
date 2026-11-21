@@ -31,10 +31,6 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|keyboardHidden">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <!-- קישור אורח שנפתח בטלפון: "לפתוח באפליקציה?" -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -45,6 +41,20 @@
                 <data android:scheme="https" android:host="isrnb.duckdns.org" android:pathPrefix="/pair" />
             </intent-filter>
         </activity>
+
+        <!-- 21/11: הסמל במסך הבית – "שערים" לכולם, "העוזר שלי" רק במצב מנהל (לא במסך הרכב). Brand.apply מחליף ביניהם -->
+        <activity-alias android:name=".GatesLauncher" android:targetActivity=".MainActivity" android:label="שערים" android:enabled="true" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AdminLauncher" android:targetActivity=".MainActivity" android:label="העוזר שלי" android:enabled="false" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <activity android:name=".SettingsActivity" android:exported="false" />
 
