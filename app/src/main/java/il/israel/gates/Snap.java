@@ -55,7 +55,7 @@ final class Snap {
             if (code == 200) { // 📸 → מסך עריכה + "מה לעשות עם הצילום?"
                 String body = ""; try (java.util.Scanner sc = new java.util.Scanner(h.getInputStream(), "UTF-8").useDelimiter("\\A")) { if (sc.hasNext()) body = sc.next(); } catch (Exception e) { /* בלי */ }
                 String id = new org.json.JSONObject(body.isEmpty() ? "{}" : body).optString("id", "");
-                if (!id.isEmpty()) { String ui = u.getScheme() + "://" + u.getAuthority() + u.getPath().replaceAll("/+$", "") + "/snapui?t=" + Uri.encode(u.getQueryParameter("t")) + "&id=" + id;
+                if (!id.isEmpty()) { String ui = u.getScheme() + "://" + u.getAuthority() + u.getPath().replaceAll("/+$", "") + "/guest?snap=ui&t=" + Uri.encode(u.getQueryParameter("t")) + "&id=" + id;
                     c.startActivity(new android.content.Intent(c, MainActivity.class).putExtra("loadOnce", ui).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)); return "📸 נשלח – ערוך וכתוב מה לעשות"; }
             }
             return code == 200 ? "✅ צילום המסך נשלח לבדיקה" : code == 403 ? "⚠️ רק הבעלים יכול לשלוח צילום" : "⚠️ השליחה נכשלה (" + code + ")";
