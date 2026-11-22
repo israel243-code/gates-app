@@ -24,6 +24,7 @@ import java.util.Scanner;
  */
 final class LocalEngine {
     private final Context c;
+    private final Map<String, Long> pendingUntil = new HashMap<>();
     private JSONObject st;           // מהשרת: שערים מותרים, ברירות מחדל, הגדרות אישיות (/st)
     private long stAt = 0, prevAt = 0;
     private final Map<String, Double> prev = new HashMap<>();
@@ -141,7 +142,9 @@ final class LocalEngine {
             if (dist < 1500 && (was == null || Math.abs(was - dist) > 15)) log(g + ": " + Math.round(dist) + " מ׳" + (dist <= radius ? " (בתוך " + Math.round(radius) + ")" : ""));
             JSONArray zone = my != null && my.optJSONArray("zone") != null ? my.optJSONArray("zone") : d.optJSONArray("zone"); // 📐 אזור במקום עיגול (18/11)
             boolean outside = zone != null && zone.length() >= 3 ? !inZone(lat, lon, zone) : dist > radius;
-            if (outside || was == null || dist > was - 3) continue;                 // מחוץ לרדיוס / לאזור, או לא מתקרבים
+            Long pu = pendingUntil.get(g); boolean pend = pu != null && pu > now;      // 📵 22/11: פתיחה שנכשלה בלי אינטרנט – ניסיון חוזר עד דקה, גם בלי "מתקרבים"
+            if (pu != null && !pend) { pendingUntil.remove(g); log("⌛ " + g + ": התקשורת לא חזרה תוך דקה – הפתיחה בוטלה"); }
+            if (!pend && (outside || was == null || dist > was - 3)) continue;                 // מחוץ לרדיוס / לאזור, או לא מתקרבים
             Long lo = lastOpen.get(g);
             if (lo != null && now - lo < gap * 60000) continue;                           // נפתח לאחרונה
             lastOpen.put(g, now);
@@ -155,7 +158,8 @@ final class LocalEngine {
                 code = h.getResponseCode();
                 try (InputStream in = code < 400 ? h.getInputStream() : h.getErrorStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { if (s.hasNext()) body = s.next(); }
                 catch (Exception e) { /* בלי גוף */ }
-            } catch (Exception e) { lastOpen.put(g, now - (long) (gap * 60000) + 30000); state = "אין אינטרנט"; log("⚠️ אין אינטרנט – ניסיון חוזר בעוד חצי דקה"); continue; } // ניסיון חוזר אחרי חצי דקה
+            } catch (Exception e) { if (!pendingUntil.containsKey(g)) { pendingUntil.put(g, now + 60000); log("📵 אין אינטרנט – " + g + " ייפתח כשהתקשורת תחזור (עד דקה)"); } lastOpen.put(g, now - (long) (gap * 60000) + 3000); state = "אין אינטרנט – ממתין"; continue; } // ניסיון חוזר אחרי חצי דקה
+            pendingUntil.remove(g);
             JSONObject r = new JSONObject(body.isEmpty() ? "{}" : body);
             if (code == 403 && "expired".equals(r.optString("r"))) return "expired";
             if (code == 409) { sp.edit().putBoolean("stDirty", true).apply(); log("🔄 הגדרות השערים השתנו בשרת – מרענן ומנסה שוב"); lastOpen.put(g, now - (long) (gap * 60000) + 3000); continue; } // A8

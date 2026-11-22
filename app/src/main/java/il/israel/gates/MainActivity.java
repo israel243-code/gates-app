@@ -255,6 +255,15 @@ public class MainActivity extends Activity {
     }
 
     private void openWeb() { openWeb(startUrl()); }
+    private volatile boolean offlineShown = false, netWatched = false;
+    private boolean online() { try { android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE); android.net.NetworkInfo ni = cm.getActiveNetworkInfo(); return ni != null && ni.isConnected(); } catch (Exception e) { return true; } }
+    // כשהתקשורת חוזרת: חזרה לטעינה רגילה; ממסך "אין חיבור" – פותחים שוב את הדף. הדף עצמו ממשיך לבד (ופתיחה שבתור נשלחת)
+    private void watchNet() {
+        if (netWatched || android.os.Build.VERSION.SDK_INT < 24) return; netWatched = true;
+        try { ((android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE)).registerDefaultNetworkCallback(new android.net.ConnectivityManager.NetworkCallback() {
+            @Override public void onAvailable(android.net.Network n) { runOnUiThread(() -> { if (web != null) web.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT); if (offlineShown) { offlineShown = false; openWeb(); } }); }
+        }); } catch (Exception e) { /* בלי */ }
+    }
 
     private void openWeb(String start) {
         web = new WebView(this);
@@ -263,13 +272,15 @@ public class MainActivity extends Activity {
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setGeolocationEnabled(true);
+        ws.setCacheMode(online() ? WebSettings.LOAD_DEFAULT : WebSettings.LOAD_CACHE_ELSE_NETWORK); // 📵 22/11: בלי תקשורת – העותק השמור של הדף
+        watchNet();
         ws.setUserAgentString(ws.getUserAgentString() + " GatesApp/1"); // הדף מזהה שזו האפליקציה (מסתיר שידור מהדפדפן, מציג "הגדרות")
         web.addJavascriptInterface(new Bridge(), "GatesApp");
         final String host = Uri.parse(start).getHost(); siteHost = host;
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, android.webkit.WebResourceError e) {
-                if (r.isForMainFrame()) showOffline(); // בלי קליטה: מסך בעברית, בלי להציג את הקישור הסודי (18/11)
+                if (r.isForMainFrame()) { WebSettings s2 = v.getSettings(); if (s2.getCacheMode() != WebSettings.LOAD_CACHE_ONLY) { s2.setCacheMode(WebSettings.LOAD_CACHE_ONLY); v.reload(); return; } offlineShown = true; showOffline(); } // קודם העותק השמור, ורק אם אין – מסך "אין חיבור" // בלי קליטה: מסך בעברית, בלי להציג את הקישור הסודי (18/11)
             }
             @Override
             public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) { try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
