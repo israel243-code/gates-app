@@ -50,6 +50,20 @@ final class ClipAgent {
         try { e.schedule(() -> { try { tick(app); } catch (Throwable t) { lastErr = t.getClass().getSimpleName(); LocalEngine.log("🎥 שגיאה: " + lastErr); } loop(app, every); }, delay, TimeUnit.SECONDS); } catch (Exception x) { /* נעצר */ }
     }
     static volatile String lastErr = "";
+    static volatile int fails = 0; // כמה פעמים ברצף לא הייתה תקשורת לשרת
+    // 📶 22/11: איזו תקשורת יש לאפליקציה ברכב – רשת אלחוטית (נקודה חמה) / סים של הרכב / כלום
+    static String netType(Context c) {
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) c.getSystemService(Context.CONNECTIVITY_SERVICE);
+            android.net.NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
+            if (nc == null) return "none";
+            if (nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) return "wifi";
+            if (nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)) return "cell";
+            if (nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) return "eth";
+            if (nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_BLUETOOTH)) return "bt";
+            return "other";
+        } catch (Exception e) { return "?"; }
+    }
     static volatile int dRoots, dDirs, dDays;
     static synchronized void stop() { if (ex != null) { ex.shutdownNow(); ex = null; } }
 
@@ -74,10 +88,10 @@ final class ClipAgent {
         }
         boolean perm = android.os.Build.VERSION.SDK_INT < 23 || c.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED;
         int ver = 0; try { ver = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionCode; } catch (Exception e) { /* אין */ }
-        JSONObject diag = new JSONObject().put("perm", perm).put("roots", dRoots).put("dirs", dDirs).put("days", dDays).put("files", items.length()).put("ver", ver).put("err", lastErr); // 22/11: למה אין קליפים – מוצג בדף
+        JSONObject diag = new JSONObject().put("perm", perm).put("roots", dRoots).put("dirs", dDirs).put("days", dDays).put("files", items.length()).put("ver", ver).put("err", lastErr).put("net", netType(c)).put("fails", fails); // 22/11: למה אין קליפים – מוצג בדף
         String r = post(BASE + "?step=clipidx&t=" + Uri.encode(t), new JSONObject().put("items", items).put("diag", diag).toString().getBytes(StandardCharsets.UTF_8), "application/json");
-        if (r == null) return;
-        lastErr = "";
+        if (r == null) { fails++; return; }
+        lastErr = ""; fails = 0;
         JSONObject jr = new JSONObject(r); every = Math.max(5, Math.min(300, jr.optInt("every", 60)));
         JSONArray want = jr.optJSONArray("want");
         for (int i = 0; want != null && i < want.length(); i++) {
