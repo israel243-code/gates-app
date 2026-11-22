@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
         Ui.theme(this);
         LocalEngine.init(this);
         Brand.apply(this); // 21/11: "העוזר שלי" למנהל
+        if (Prefs.carScreen(this)) ClipAgent.start(this); // 🎥 22/11: גם בפתיחת האפליקציה ברכב, לא רק כשמשדרים מיקום
         { final android.content.Context x = getApplicationContext(); new Thread(() -> WorkoutService.sendPending(x)).start(); } // 🏃 אימונים שלא נשלחו
         take(getIntent());
         show();
