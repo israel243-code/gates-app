@@ -89,7 +89,7 @@ final class ClipAgent {
         }
         boolean perm = android.os.Build.VERSION.SDK_INT < 23 || c.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED;
         int ver = 0; try { ver = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionCode; } catch (Exception e) { /* אין */ }
-        JSONObject diag = new JSONObject().put("perm", perm).put("roots", dRoots).put("dirs", dDirs).put("days", dDays).put("files", items.length()).put("ver", ver).put("err", lastErr).put("net", Net.type(c)).put("sim", Net.bound ? "bound" : Net.cellSeen ? "avail" : "no").put("fails", fails); // 22/11: למה אין קליפים – מוצג בדף
+        JSONObject diag = new JSONObject().put("perm", perm).put("roots", dRoots).put("dirs", dDirs).put("days", dDays).put("files", items.length()).put("ver", ver).put("err", lastErr).put("net", Net.type(c)).put("sim", Net.bound ? "bound" : Net.cellBlocked ? "blocked" : Net.cellSeen ? "avail" : "no").put("fails", fails); // 22/11: למה אין קליפים – מוצג בדף
         String r = post(BASE + "?step=clipidx&t=" + Uri.encode(t), new JSONObject().put("items", items).put("diag", diag).toString().getBytes(StandardCharsets.UTF_8), "application/json");
         if (r == null) { fails++; return; }
         lastErr = ""; fails = 0;

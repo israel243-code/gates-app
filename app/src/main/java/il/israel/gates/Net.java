@@ -15,7 +15,7 @@ final class Net {
     private Net() {}
     private static boolean started = false;
     private static volatile Network cell = null;
-    static volatile boolean bound = false, cellSeen = false;
+    static volatile boolean bound = false, cellSeen = false, cellBlocked = false, probing = false;
 
     static synchronized void start(Context c0) {
         if (started || !Prefs.carScreen(c0)) return;
@@ -36,14 +36,26 @@ final class Net {
         } catch (Exception e) { LocalEngine.log("📶 אין אפשרות לבקש את הסים: " + e.getClass().getSimpleName()); }
     }
 
-    private static synchronized void decide(ConnectivityManager cm) {
-        try {
-            Network d = cm.getActiveNetwork();
-            NetworkCapabilities nc = d == null ? null : cm.getNetworkCapabilities(d);
-            boolean defOk = nc != null && nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) && !nc.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
-            if (!defOk && cell != null && !bound) { bound = cm.bindProcessToNetwork(cell); LocalEngine.log("📶 עובר לסים של הרכב" + (bound ? "" : " – נכשל")); }
-            else if ((defOk || cell == null) && bound) { cm.bindProcessToNetwork(null); bound = false; LocalEngine.log("📶 חוזר לרשת הרגילה"); }
-        } catch (Exception e) { /* בלי */ }
+    // 22/11 (תיקון): עוברים לסים רק אחרי בדיקה אמיתית שהשרת עונה דרכו – אם הרכב חוסם את הסים לאפליקציה, לא עוברים (אחרת האפליקציה נשארת בלי כלום)
+    private static void decide(final ConnectivityManager cm) {
+        if (probing) return; probing = true;
+        new Thread(() -> {
+            try {
+                Network d = cm.getActiveNetwork();
+                boolean defOk = d != null && !isCell(cm, d) && reach(d);
+                if (defOk) { if (bound) { cm.bindProcessToNetwork(null); bound = false; LocalEngine.log("📶 חוזר לרשת הרגילה"); } }
+                else if (cell != null && !bound) {
+                    if (reach(cell)) { cellBlocked = false; bound = cm.bindProcessToNetwork(cell); LocalEngine.log("📶 אין אינטרנט ברשת הרגילה – עובר לסים של הרכב" + (bound ? "" : " (נכשל)")); }
+                    else { cellBlocked = true; LocalEngine.log("📶 הסים של הרכב חוסם את האפליקציה – נשארים ברשת הרגילה"); }
+                } else if (cell == null && bound) { cm.bindProcessToNetwork(null); bound = false; }
+            } catch (Exception e) { /* בלי */ } finally { probing = false; }
+        }).start();
+    }
+    private static boolean isCell(ConnectivityManager cm, Network n) { NetworkCapabilities nc = cm.getNetworkCapabilities(n); return nc != null && nc.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR); }
+    /** האם השרת עונה דרך הרשת הזו (עד 6 שניות) */
+    static boolean reach(Network n) {
+        try { java.net.HttpURLConnection h = (java.net.HttpURLConnection) n.openConnection(new java.net.URL("https://isrnb.duckdns.org/join")); h.setConnectTimeout(6000); h.setReadTimeout(6000); h.setRequestMethod("HEAD"); int c = h.getResponseCode(); h.disconnect(); return c > 0; }
+        catch (Exception e) { return false; }
     }
 
     /** שורת מצב בעברית: איזו תקשורת יש עכשיו ומה עם הסים של הרכב */
@@ -56,7 +68,7 @@ final class Net {
             case "none": now = "אין תקשורת"; break;
             default: now = "אחר";
         }
-        String sim = bound ? "האפליקציה משתמשת בסים של הרכב ✅" : cellSeen ? "הסים של הרכב זמין לאפליקציה" : "הסים של הרכב לא זמין לאפליקציה";
+        String sim = bound ? "האפליקציה משתמשת בסים של הרכב ✅" : cellBlocked ? "❌ הסים של הרכב חוסם את האפליקציה – בהגדרות הרכב לאפשר ל\"שערים\" נתונים ניידים" : cellSeen ? "הסים של הרכב זמין (בשימוש רק כשאין אינטרנט ברשת הרגילה)" : "הסים של הרכב לא זמין לאפליקציה";
         return "📶 עכשיו: " + now + " · " + sim;
     }
 

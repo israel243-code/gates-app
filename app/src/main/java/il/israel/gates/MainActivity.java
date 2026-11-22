@@ -364,6 +364,7 @@ public class MainActivity extends Activity {
         /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
         /** 📤 "שלח עכשיו לבדיקה" בדשבורד: היומן שעוד לא נשלח – לשרת מיד */
         // 🏃 אימון (21/11) – דף "הכושר שלי" בדשבורד
+        @JavascriptInterface public void snap(String note) { if (!ok()) return; runOnUiThread(() -> Snap.take(MainActivity.this, note)); } // 📸 22/11
         @JavascriptInterface public String netInfo() { return Prefs.carScreen(MainActivity.this) ? Net.status(MainActivity.this) : ""; } // 📶 22/11
         @JavascriptInterface public String wkTrack(int from) { return WorkoutService.track(from); } // 🗺️ המסלול של האימון הנוכחי (מנקודה from)
         // 📅 יומן גוגל / 🔎 גוגל (פיננסים) – באפליקציה עצמה, לא באתר (21/11)

@@ -91,6 +91,7 @@ public class SettingsActivity extends Activity {
             Ui.note(this, perm, "בשיאומי / רדמי: גם בהגדרות האפליקציה ← \"חיסכון בסוללה\" ← \"ללא הגבלות\", ו\"הפעלה אוטומטית\" מופעלת.");
 
         // --- 2. רכבים ---
+        Ui.button(this, root, "📸 צלם את המסך ושלח לבדיקה", false, v -> Snap.take(this, "מסך ההגדרות")); // 22/11
         LinearLayout cars = Ui.card(this, root, car ? "🚗 מסך הרכב" : "🚗 הרכבים שלי");
         Switch auto = new Switch(this);
         auto.setText(car ? "🚪 פתיחה אוטומטית – השערים נפתחים לבד כשהרכב מתקרב" : "🚪 פתיחה אוטומטית – כשנכנסים לרכב, השערים נפתחים לבד כשמתקרבים");
