@@ -31,6 +31,7 @@ import android.widget.Toast;
  */
 public class MainActivity extends Activity {
     private WebView web;
+    private android.webkit.PermissionRequest micReq;
     private long unlockedAt = 0;
     private boolean authing = false;
     private GeolocationPermissions.Callback geoCb; // מחכים לתשובת המשתמש להרשאת המיקום (18/11)
@@ -52,6 +53,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent i) {
         super.onNewIntent(i);
+        String once = i.getStringExtra("loadOnce"); // 📸 22/11: אחרי צילום מסך – עורך + שאלה מה לעשות
+        if (once != null && web != null && Prefs.valid(Prefs.url(this)) && once.startsWith("https://")) { web.loadUrl(once); return; }
         if (take(i)) show();
     }
 
@@ -315,6 +318,14 @@ public class MainActivity extends Activity {
         });
         web.setWebChromeClient(new WebChromeClient() {
             // 21/11: חלונות "אישור / ביטול" של הדף – חלון של האפליקציה, בלי "בדף שבכתובת ..." (הבעלים: "לא נעים בעין")
+            @Override public void onPermissionRequest(android.webkit.PermissionRequest r) { // 🎙️ רק לאתר שלנו, ורק מיקרופון
+                runOnUiThread(() -> {
+                    boolean ours = siteHost != null && siteHost.equals(r.getOrigin().getHost()), audio = java.util.Arrays.asList(r.getResources()).contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE);
+                    if (!ours || !audio) { r.deny(); return; }
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) r.grant(new String[] { android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+                    else { micReq = r; requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, 77); }
+                });
+            }
             @Override public boolean onJsAlert(WebView v, String url, String msg, android.webkit.JsResult r) {
                 new android.app.AlertDialog.Builder(MainActivity.this).setMessage(msg).setPositiveButton("הבנתי", (d, w) -> r.confirm()).setOnCancelListener((d) -> r.confirm()).show(); return true; }
             @Override public boolean onJsConfirm(WebView v, String url, String msg, android.webkit.JsResult r) {
@@ -364,6 +375,7 @@ public class MainActivity extends Activity {
         /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
         /** 📤 "שלח עכשיו לבדיקה" בדשבורד: היומן שעוד לא נשלח – לשרת מיד */
         // 🏃 אימון (21/11) – דף "הכושר שלי" בדשבורד
+        @JavascriptInterface public void localClips() { if (!ok()) return; runOnUiThread(() -> startActivity(new Intent(MainActivity.this, ClipsActivity.class))); } // 🎥 22/11: מהכרטיס, בלי אינטרנט
         @JavascriptInterface public void snap(String note) { if (!ok()) return; runOnUiThread(() -> Snap.take(MainActivity.this, note)); } // 📸 22/11
         @JavascriptInterface public String netInfo() { return Prefs.carScreen(MainActivity.this) ? Net.status(MainActivity.this) : ""; } // 📶 22/11
         @JavascriptInterface public String wkTrack(int from) { return WorkoutService.track(from); } // 🗺️ המסלול של האימון הנוכחי (מנקודה from)
@@ -417,6 +429,10 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
+        if (code == 77 && micReq != null) { // 🎙️ הקלטה בדף (מסך צילום המסך)
+            if (res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) micReq.grant(new String[] { android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE }); else micReq.deny();
+            micReq = null;
+        }
         if (code == 7 && geoCb != null) {
             geoCb.invoke(geoOrigin, res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED, false);
             geoCb = null;

@@ -103,7 +103,7 @@ final class ClipAgent {
     }
 
     /** קבצי mp4 בתיקיות 360Videos בכל מקום אחסון, מ-3 הימים האחרונים */
-    private static List<File> scan() {
+    static List<File> scan() {
         List<File> out = new ArrayList<>();
         List<File> roots = new ArrayList<>();
         roots.add(new File("/storage/emulated/0"));

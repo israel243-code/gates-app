@@ -92,6 +92,7 @@ public class SettingsActivity extends Activity {
 
         // --- 2. רכבים ---
         Ui.button(this, root, "📸 צלם את המסך ושלח לבדיקה", false, v -> Snap.take(this, "מסך ההגדרות")); // 22/11
+        if (Prefs.carScreen(this)) Ui.button(this, root, "🎥 קליפים מהרכב (מהכרטיס, בלי אינטרנט)", true, v -> startActivity(new Intent(this, ClipsActivity.class)));
         LinearLayout cars = Ui.card(this, root, car ? "🚗 מסך הרכב" : "🚗 הרכבים שלי");
         Switch auto = new Switch(this);
         auto.setText(car ? "🚪 פתיחה אוטומטית – השערים נפתחים לבד כשהרכב מתקרב" : "🚪 פתיחה אוטומטית – כשנכנסים לרכב, השערים נפתחים לבד כשמתקרבים");
