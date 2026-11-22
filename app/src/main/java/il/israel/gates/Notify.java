@@ -19,6 +19,21 @@ final class Notify {
         post(c, ok ? "🚪 " + label + " נפתח" : "⚠️ " + label + " לא נפתח", ok ? "" : text);
     }
 
+    /** 🚧 שער נתקע (22/11): נפתח לפני דקה+ ואתה עדיין עומד מולו – התראה עם כפתור "פתח שוב". עם נעילה לפני פתיחה – הכפתור פותח את האפליקציה. */
+    static void stuck(Context c, String label) {
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        if (nm == null) return;
+        if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(new NotificationChannel(LOUD, "פתיחת שערים", NotificationManager.IMPORTANCE_HIGH));
+        int id = 50 + Math.abs(label.hashCode() % 40);
+        PendingIntent app = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent again = Prefs.lock(c) != 0 ? app : PendingIntent.getBroadcast(c, id, new Intent(c, ReopenReceiver.class).putExtra("gate", label).putExtra("nid", id), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, LOUD) : new Notification.Builder(c);
+        b.setContentTitle("🚧 " + label + " – השער תקוע?").setContentText("נפתח לפני יותר מדקה ואתה עדיין מולו").setSmallIcon(R.drawable.ic_stat)
+            .setContentIntent(app).setAutoCancel(true).setWhen(System.currentTimeMillis()).setShowWhen(true)
+            .addAction(new Notification.Action.Builder(null, "🔓 פתח שוב", again).build());
+        try { nm.notify(id, b.build()); } catch (SecurityException e) { /* אין הרשאת התראות */ }
+    }
+
     static void service(Context c, String text) {
         if (Prefs.flag(c, "nService", false)) post(c, text, "");
     }

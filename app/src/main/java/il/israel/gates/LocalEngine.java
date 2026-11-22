@@ -28,6 +28,8 @@ final class LocalEngine {
     private long stAt = 0, prevAt = 0;
     private final Map<String, Double> prev = new HashMap<>();
     private final Map<String, Long> lastOpen = new HashMap<>();
+    private final Map<String, Long> okAt = new HashMap<>(), stuckSent = new HashMap<>();
+    private final java.util.List<double[]> track = new java.util.ArrayList<>();
     String state = "";
 
     // יומן קצר בטלפון (18/11: "למה הניסיוני לא עבד?") – מוצג בהגדרות; בלי מיקומים, רק מרחקים והחלטות
@@ -161,7 +163,17 @@ final class LocalEngine {
             log((r.optBoolean("ok") ? "✅ " : "⚠️ ") + r.optString("r", "code " + code));
             Notify.gate(c, g, r.optBoolean("ok"), r.optString("r", ""));
             if (!r.optBoolean("ok")) lastOpen.put(g, now - (long) (gap * 60000) + 30000); // לא נפתח – ניסיון חוזר אחרי חצי דקה
-            else { result = "open"; state = "🚪 נפתח: " + g; }
+            else { result = "open"; state = "🚪 נפתח: " + g; okAt.put(g, now); }
+        }
+        // 🚧 שער נתקע (22/11): נפתח לפני 60–240 שניות, עד 70 מ׳ ממנו, ועומדים במקום 35+ שניות → התראה אחת עם "פתח שוב"
+        track.add(new double[]{now, lat, lon});
+        while (!track.isEmpty() && now - track.get(0)[0] > 45000) track.remove(0);
+        boolean still = track.size() >= 3 && now - track.get(0)[0] >= 35000;
+        for (double[] p : track) if (meters(p[1], p[2], lat, lon) > 20) still = false;
+        if (still) for (Map.Entry<String, Long> e : okAt.entrySet()) {
+            long age = now - e.getValue(); Double dd = cur.get(e.getKey());
+            if (age < 60000 || age > 240000 || dd == null || dd > 70 || e.getValue().equals(stuckSent.get(e.getKey()))) continue;
+            stuckSent.put(e.getKey(), e.getValue()); log("🚧 " + e.getKey() + " – נראה שהשער תקוע"); Notify.stuck(c, e.getKey());
         }
         prev.clear(); prev.putAll(cur); prevAt = now;
         return result;

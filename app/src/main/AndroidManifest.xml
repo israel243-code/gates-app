@@ -83,6 +83,7 @@
         </receiver>
 
         <receiver android:name=".StopReceiver" android:exported="false" />
+        <receiver android:name=".ReopenReceiver" android:exported="false" />
         <receiver android:name=".SilentInstall$InstallResult" android:exported="false" />
         <!-- אנדרואיד אוטו: מסך שערים ברכב (קטגוריית מכשירים חכמים) -->
         <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />

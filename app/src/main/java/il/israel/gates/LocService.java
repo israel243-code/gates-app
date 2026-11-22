@@ -164,6 +164,7 @@ public class LocService extends Service implements LocationListener {
                     if (standby && !"הרכב משדר – הטלפון בהמתנה".equals(state)) LocalEngine.log("🚗 הרכב משדר בעצמו – הטלפון בהמתנה");
                     state = standby ? "הרכב משדר – הטלפון בהמתנה" : "משדר";
                     if (r.contains("\"open\"")) h.post(() -> show("🚪 נשלחה פקודת פתיחה"));
+                    try { org.json.JSONObject sk = new org.json.JSONObject(r).optJSONObject("stuck"); if (sk != null) { LocalEngine.log("🚧 " + sk.optString("label") + " – נראה שהשער תקוע"); Notify.stuck(LocService.this, sk.optString("label")); } } catch (Exception x) { /* בלי */ }
                     try { // 🔔 פתיחות של המשתמש הזה שהשרת דיווח עליהן – התראה פעם אחת לכל אחת
                         org.json.JSONArray ev = new org.json.JSONObject(r).optJSONArray("ev");
                         long seen = Prefs.lastEv(LocService.this);
