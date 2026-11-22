@@ -398,6 +398,12 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void peekUpdate() { if (!ok()) return; Updater.peek(); }
         @JavascriptInterface public String updateAvail() { int k = Updater.known; return k > Updater.current(MainActivity.this) ? "עדכון " + Math.max(1, k - Updater.BASE) : ""; }
         @JavascriptInterface public void installUpdate() { if (!ok()) return; runOnUiThread(() -> Updater.install(MainActivity.this)); }
+        @JavascriptInterface public void micPerm() { if (!ok()) return; // 🎙️ (22/11): הרשאת מיקרופון מאנדרואיד לפני הקלטה בדף; התשובה ב-window.__gaMic
+            runOnUiThread(() -> {
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) micDone(true);
+                else requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, 78);
+            });
+        }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) { if (!ok()) return;
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");
@@ -405,6 +411,10 @@ public class MainActivity extends Activity {
                     () -> { if (web != null) web.evaluateJavascript("window.__gaAuth && __gaAuth('" + i + "', true)", null); },
                     () -> { if (web != null) web.evaluateJavascript("window.__gaAuth && __gaAuth('" + i + "', false)", null); }));
         }
+    }
+
+    void micDone(boolean granted) {
+        if (web != null) web.evaluateJavascript("window.__gaMic && __gaMic(" + granted + ")", null);
     }
 
     @Override
@@ -433,6 +443,7 @@ public class MainActivity extends Activity {
             if (res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) micReq.grant(new String[] { android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE }); else micReq.deny();
             micReq = null;
         }
+        if (code == 78) micDone(res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED);
         if (code == 7 && geoCb != null) {
             geoCb.invoke(geoOrigin, res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED, false);
             geoCb = null;
