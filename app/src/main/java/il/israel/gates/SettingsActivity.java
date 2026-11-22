@@ -110,6 +110,7 @@ public class SettingsActivity extends Activity {
         scr.setOnCheckedChangeListener((v, on) -> { Prefs.setCarScreen(this, on); if (on) CarCheck.run(this, "הופעל בהגדרות"); else if (LocService.running) LocService.stop(this); });
         cars.addView(scr);
         if (car) {
+            Net.start(this); Ui.note(this, cars, Net.status(this) + "\nאם כתוב \"לא זמין\": בהגדרות הרכב ← שימוש בנתונים / ניהול נתונים ← לאפשר לאפליקציה \"שערים\" נתונים ניידים ונתוני רקע."); // 📶 22/11
             Ui.note(this, cars, "המיקום מגיע מה-GPS של הרכב, כל עוד הרכב דלוק. לא צריך טלפון ולא בלוטות'.");
         } else {
         Ui.note(this, cars, "סמן את הבלוטות' של הרכב. השידור מתחיל כשהטלפון מתחבר אליו, ונעצר כשהוא מתנתק.");

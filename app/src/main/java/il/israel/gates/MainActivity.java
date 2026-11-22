@@ -42,7 +42,7 @@ public class MainActivity extends Activity {
         Ui.theme(this);
         LocalEngine.init(this);
         Brand.apply(this); // 21/11: "העוזר שלי" למנהל
-        if (Prefs.carScreen(this)) ClipAgent.start(this); // 🎥 22/11: גם בפתיחת האפליקציה ברכב, לא רק כשמשדרים מיקום
+        if (Prefs.carScreen(this)) { Net.start(this); ClipAgent.start(this); } // 📶 סים של הרכב כשאין אינטרנט ברשת הרגילה // 🎥 22/11: גם בפתיחת האפליקציה ברכב, לא רק כשמשדרים מיקום
         { final android.content.Context x = getApplicationContext(); new Thread(() -> WorkoutService.sendPending(x)).start(); } // 🏃 אימונים שלא נשלחו
         take(getIntent());
         show();
@@ -364,6 +364,7 @@ public class MainActivity extends Activity {
         /** 🔔 עדכון לאפליקציה – לפעמון בדשבורד: peek = בדיקה ברקע; updateAvail = "עדכון N" אם יש חדש, אחרת ריק; installUpdate = הורדה והתקנה */
         /** 📤 "שלח עכשיו לבדיקה" בדשבורד: היומן שעוד לא נשלח – לשרת מיד */
         // 🏃 אימון (21/11) – דף "הכושר שלי" בדשבורד
+        @JavascriptInterface public String netInfo() { return Prefs.carScreen(MainActivity.this) ? Net.status(MainActivity.this) : ""; } // 📶 22/11
         @JavascriptInterface public String wkTrack(int from) { return WorkoutService.track(from); } // 🗺️ המסלול של האימון הנוכחי (מנקודה from)
         // 📅 יומן גוגל / 🔎 גוגל (פיננסים) – באפליקציה עצמה, לא באתר (21/11)
         @JavascriptInterface public void calendar() { if (!ok()) return; runOnUiThread(() -> {
