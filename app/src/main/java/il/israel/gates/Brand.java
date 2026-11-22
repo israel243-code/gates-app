@@ -1,4 +1,3 @@
-// build retry 22/11
 package il.israel.gates;
 
 import android.content.ComponentName;

@@ -149,7 +149,7 @@ final class LocalEngine {
                 HttpURLConnection h = (HttpURLConnection) new URL(url("open")).openConnection();
                 h.setConnectTimeout(8000); h.setReadTimeout(20000); h.setRequestMethod("POST"); h.setDoOutput(true);
                 h.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); h.setRequestProperty("User-Agent", "GatesApp/1");
-                try (OutputStream o = h.getOutputStream()) { o.write(("gate=" + Uri.encode(g) + "&auto=1&cv=" + Uri.encode(st == null ? "" : st.optString("cv", ""))).getBytes(StandardCharsets.UTF_8)); // A8: גרסת ההגדרות }
+                try (OutputStream o = h.getOutputStream()) { o.write(("gate=" + Uri.encode(g) + "&auto=1&cv=" + Uri.encode(st == null ? "" : st.optString("cv", ""))).getBytes(StandardCharsets.UTF_8)); } // A8: גרסת ההגדרות
                 code = h.getResponseCode();
                 try (InputStream in = code < 400 ? h.getInputStream() : h.getErrorStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { if (s.hasNext()) body = s.next(); }
                 catch (Exception e) { /* בלי גוף */ }
