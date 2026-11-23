@@ -28,6 +28,7 @@ final class LocalEngine {
     private JSONObject st;           // מהשרת: שערים מותרים, ברירות מחדל, הגדרות אישיות (/st)
     private long stAt = 0, prevAt = 0;
     private final Map<String, Double> prev = new HashMap<>();
+    private boolean firstFix = true; // המיקום הראשון בשידור הזה (נבדק מול השערים)
     private final Map<String, Long> lastOpen = new HashMap<>();
     private final Map<String, Long> okAt = new HashMap<>(), stuckSent = new HashMap<>();
     private final java.util.List<double[]> track = new java.util.ArrayList<>();
@@ -144,7 +145,9 @@ final class LocalEngine {
             boolean outside = zone != null && zone.length() >= 3 ? !inZone(lat, lon, zone) : dist > radius;
             Long pu = pendingUntil.get(g); boolean pend = pu != null && pu > now;      // 📵 22/11: פתיחה שנכשלה בלי אינטרנט – ניסיון חוזר עד דקה, גם בלי "מתקרבים"
             if (pu != null && !pend) { pendingUntil.remove(g); log("⌛ " + g + ": התקשורת לא חזרה תוך דקה – הפתיחה בוטלה"); }
-            if (!pend && (outside || was == null || dist > was - 3)) continue;                 // מחוץ לרדיוס / לאזור, או לא מתקרבים
+            boolean startNear = firstFix && !outside && dist <= 40;                       // 23/11: השידור התחיל כשהרכב כבר צמוד לשער – פותחים בלי לחכות ל"מתקרבים"
+            if (startNear) log("🚗 השידור התחיל ליד " + g + " (" + Math.round(dist) + " מ׳) – פותח מיד");
+            if (!pend && !startNear && (outside || was == null || dist > was - 3)) continue; // מחוץ לרדיוס / לאזור, או לא מתקרבים
             Long lo = lastOpen.get(g);
             if (lo != null && now - lo < gap * 60000) continue;                           // נפתח לאחרונה
             lastOpen.put(g, now);
@@ -179,7 +182,7 @@ final class LocalEngine {
             if (age < 60000 || age > 240000 || dd == null || dd > 70 || e.getValue().equals(stuckSent.get(e.getKey()))) continue;
             stuckSent.put(e.getKey(), e.getValue()); log("🚧 " + e.getKey() + " – נראה שהשער תקוע"); Notify.stuck(c, e.getKey());
         }
-        prev.clear(); prev.putAll(cur); prevAt = now;
+        prev.clear(); prev.putAll(cur); prevAt = now; firstFix = false;
         return result;
     }
 }

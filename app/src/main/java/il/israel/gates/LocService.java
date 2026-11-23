@@ -53,6 +53,59 @@ public class LocService extends Service implements LocationListener {
 
     static void stop(Context c) { c.stopService(new Intent(c, LocService.class)); }
 
+    // 23/11: הבלוטות' של הרכב "קופץ" לרגע (התחבר → התנתק אחרי 6 שנ') והשידור נעצר לכל הנסיעה.
+    // בניתוק – ממשיכים לשדר עוד 90 שניות, ואז עוצרים רק אם הרכב באמת לא מחובר.
+    private static volatile LocService inst;
+    private boolean grace = false;
+
+    static void graceStop(Context c) {
+        LocService s = inst;
+        if (s == null || s.h == null) { stop(c); return; }
+        s.h.post(() -> {
+            if (s.grace) return;
+            s.grace = true;
+            LocalEngine.log("⏳ ממשיך לשדר עוד 90 שניות – אם הרכב לא יתחבר שוב, השידור ייעצר");
+            s.h.postDelayed(s.graceCheck, 90000);
+        });
+    }
+
+    /** הרכב התחבר שוב בזמן ההמתנה – ממשיכים לשדר */
+    static void cancelGrace() {
+        LocService s = inst;
+        if (s == null || s.h == null) return;
+        s.h.post(() -> { if (!s.grace) return; s.grace = false; s.h.removeCallbacks(s.graceCheck); LocalEngine.log("🚗 הרכב חזר – ממשיכים לשדר"); });
+    }
+
+    private final Runnable graceCheck = new Runnable() {
+        @Override public void run() {
+            if (!grace) return;
+            final java.util.concurrent.atomic.AtomicBoolean seen = new java.util.concurrent.atomic.AtomicBoolean(false);
+            android.bluetooth.BluetoothManager bm = getSystemService(android.bluetooth.BluetoothManager.class);
+            final android.bluetooth.BluetoothAdapter ad = bm == null ? null : bm.getAdapter();
+            if (ad != null && ad.isEnabled()) {
+                final Context app = getApplicationContext();
+                for (int profile : new int[]{android.bluetooth.BluetoothProfile.HEADSET, android.bluetooth.BluetoothProfile.A2DP}) {
+                    try {
+                        ad.getProfileProxy(app, new android.bluetooth.BluetoothProfile.ServiceListener() {
+                            @Override public void onServiceConnected(int p, android.bluetooth.BluetoothProfile proxy) {
+                                try { for (android.bluetooth.BluetoothDevice d : proxy.getConnectedDevices()) if (Prefs.cars(app).contains(d.getAddress())) seen.set(true); }
+                                catch (SecurityException e) { /* אין הרשאת בלוטות' */ }
+                                ad.closeProfileProxy(p, proxy);
+                            }
+                            @Override public void onServiceDisconnected(int p) { }
+                        }, profile);
+                    } catch (Exception e) { /* אין */ }
+                }
+            }
+            h.postDelayed(() -> { // התשובות מהבלוטות' מגיעות תוך שנייה-שתיים
+                if (!grace) return;
+                grace = false;
+                if (seen.get()) LocalEngine.log("🚗 הרכב עדיין מחובר – ממשיכים לשדר");
+                else stopSelf();
+            }, 3000);
+        }
+    };
+
     @Override public IBinder onBind(Intent i) { return null; }
 
     @Override
@@ -87,6 +140,7 @@ public class LocService extends Service implements LocationListener {
                 return START_NOT_STICKY;
             }
             running = true;
+            inst = this;
             ClipAgent.start(this); // 🎥 במסך הרכב בלבד: רשימת קליפים ושליפה לפי בקשה (20/11)
             state = "מחכה ל-GPS";
             PowerManager pm = getSystemService(PowerManager.class);
@@ -191,6 +245,7 @@ public class LocService extends Service implements LocationListener {
         LocalEngine.log("⏹️ השידור נעצר" + (state == null || state.isEmpty() ? "" : " (" + state + ")"));
         final android.content.Context ctx = getApplicationContext(); new Thread(() -> LocalEngine.upload(ctx)).start();
         running = false;
+        if (inst == this) inst = null;
         if (lm != null) lm.removeUpdates(this);
         if (wl != null && wl.isHeld()) wl.release();
         if (h != null) h.removeCallbacksAndMessages(null);

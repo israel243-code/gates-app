@@ -26,16 +26,17 @@ public class BtReceiver extends BroadcastReceiver {
         boolean profile = act.endsWith("profile.action.CONNECTION_STATE_CHANGED");
         if (profile) LocalEngine.log("ℹ️ בלוטות' " + kind + " (" + name + "): מצב " + i.getIntExtra("android.bluetooth.profile.extra.STATE", -1) + (LocService.running ? ", כבר משדר" : ""));
         int pst = i.getIntExtra("android.bluetooth.profile.extra.STATE", -1);
+        if (profile && pst == 2 && LocService.running) LocService.cancelGrace(); // 23/11: חזר בזמן ההמתנה של 90 שניות
         if (profile && ((pst != 1 && pst != 2) || LocService.running)) return; // 20/11: כבר ב"מתחבר" (1) – הרכב מתחבר עד 40 שניות, והשידור מתחיל מיד
         if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(act) || profile) {
-            if (LocService.running) { LocalEngine.log("ℹ️ הרכב התחבר (" + name + ") – כבר משדר"); return; }
+            if (LocService.running) { LocalEngine.log("ℹ️ הרכב התחבר (" + name + ") – כבר משדר"); LocService.cancelGrace(); return; }
             CarCheck.stopRecheck(c);
             LocalEngine.log("🚗 הרכב התחבר" + (profile ? " (גיבוי: " + (act.contains("a2dp") ? "אודיו" : "דיבורית") + ")" : "") + ": " + name);
             final PendingResult pr0 = goAsync(); new Thread(() -> { try { LocalEngine.upload(c.getApplicationContext()); } finally { pr0.finish(); } }).start();
             try { LocService.start(c, name, 0); } catch (Exception e) { LocService.state = "אנדרואיד חסם התחלה ברקע – בטל חיסכון סוללה"; LocalEngine.log("⚠️ " + LocService.state + " (" + e.getClass().getSimpleName() + ")"); }
         } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(act)) {
             LocalEngine.log("🚗 הרכב התנתק: " + name);
-            LocService.stop(c);
+            LocService.graceStop(c); // 23/11: לא עוצרים מיד – 90 שניות ובדיקה שהרכב באמת התנתק
             CarCheck.startRecheck(c); // #49: חצי שעה של בדיקה כל דקה – אם הרכב מתחבר שוב וההודעה פוספסה
             final PendingResult pr = goAsync(); new Thread(() -> { try { LocalEngine.upload(c.getApplicationContext()); } finally { pr.finish(); } }).start(); // היומן לשרת מיד
         }
