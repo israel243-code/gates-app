@@ -23,6 +23,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,8 +70,10 @@ public class SettingsActivity extends Activity {
         boolean bt = car || Build.VERSION.SDK_INT < 31 || has(Manifest.permission.BLUETOOTH_CONNECT);
         boolean batt = car || getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
         boolean files = !car || Build.VERSION.SDK_INT > 32 || has(Manifest.permission.READ_EXTERNAL_STORAGE); // 🎥 קליפים מה-DVR (מסך הרכב)
-        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? (files ? 1 : 0) : (bt ? 1 : 0) + (batt ? 1 : 0));
-        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך " + (car ? 4 : 5));
+        if (car) Net.start(this);
+        boolean data = !car || Net.bound || (Net.cellSeen && !Net.cellBlocked); // 📶 23/11: נתונים ניידים של הרכב
+        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? (files ? 1 : 0) + (data ? 1 : 0) : (bt ? 1 : 0) + (batt ? 1 : 0));
+        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך 5");
         Ui.step(this, perm, 1, fine, "מיקום", "כדי לדעת כשאתה מתקרב לשער", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 2));
         Ui.step(this, perm, 2, bg, "מיקום כל הזמן", Build.VERSION.SDK_INT >= 30 ? "בהגדרות: מיקום ← \"לאפשר כל הזמן\"" : "נדרש לשידור ברקע", "פתח", v -> {
@@ -83,6 +86,7 @@ public class SettingsActivity extends Activity {
                 v -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 4));
         if (car) Ui.step(this, perm, 4, files, "קבצים", "כדי לשלוח לטלפון קליפים מהמצלמות של הרכב", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 5));
+        if (car) Ui.step(this, perm, 5, data, "📶 תקשורת – נתונים ניידים", Net.status(this).replace("📶 ", ""), "פתח", v -> openDataSettings());
         if (!car) Ui.step(this, perm, 5, batt, "בלי חיסכון סוללה", "אחרת אנדרואיד חוסם התחלה ברקע", "פתח", v -> {
             try { startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); }
             catch (Exception e) { openAppSettings(); }
@@ -112,7 +116,6 @@ public class SettingsActivity extends Activity {
         scr.setOnCheckedChangeListener((v, on) -> { Prefs.setCarScreen(this, on); if (on) CarCheck.run(this, "הופעל בהגדרות"); else if (LocService.running) LocService.stop(this); });
         cars.addView(scr);
         if (car) {
-            Net.start(this); Ui.note(this, cars, Net.status(this) + "\nאם כתוב \"לא זמין\": בהגדרות הרכב ← שימוש בנתונים / ניהול נתונים ← לאפשר לאפליקציה \"שערים\" נתונים ניידים ונתוני רקע."); // 📶 22/11
             Ui.note(this, cars, "המיקום מגיע מה-GPS של הרכב, כל עוד הרכב דלוק. לא צריך טלפון ולא בלוטות'.");
         } else {
         Ui.note(this, cars, "סמן את הבלוטות' של הרכב. השידור מתחיל כשהטלפון מתחבר אליו, ונעצר כשהוא מתנתק.");
@@ -285,5 +288,20 @@ public class SettingsActivity extends Activity {
 
     private void openAppSettings() {
         startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())));
+    }
+
+    /** 📶 23/11: הגדרות הנתונים של הרכב – מהמדויק לכללי; בסוף פרטי האפליקציה */
+    private void openDataSettings() {
+        Intent[] tries = {
+            new Intent("android.settings.APP_DATA_USAGE").setData(Uri.parse("package:" + getPackageName())),
+            new Intent(Settings.ACTION_DATA_USAGE_SETTINGS),
+            new Intent(Settings.ACTION_DATA_ROAMING_SETTINGS),
+            new Intent(Settings.ACTION_WIRELESS_SETTINGS),
+        };
+        for (Intent i : tries) {
+            try { startActivity(i); Toast.makeText(this, "לאפשר ל\"שערים\" נתונים ניידים ונתוני רקע", Toast.LENGTH_LONG).show(); return; }
+            catch (Exception e) { /* המסך לא קיים ברכב – הבא */ }
+        }
+        try { openAppSettings(); } catch (Exception e) { Toast.makeText(this, "לא נמצא מסך הגדרות נתונים ברכב", Toast.LENGTH_LONG).show(); }
     }
 }
