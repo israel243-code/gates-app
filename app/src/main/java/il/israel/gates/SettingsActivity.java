@@ -292,14 +292,15 @@ public class SettingsActivity extends Activity {
 
     /** 📶 23/11: הגדרות הנתונים של הרכב – מהמדויק לכללי; בסוף פרטי האפליקציה */
     private void openDataSettings() {
-        Intent[] tries = {
+        Intent[] tries = { // 23/11: קודם המסך "גישה לא מוגבלת לנתונים" של האפליקציה עצמה (חוסך הנתונים של הרכב חוסם את הסים)
+            new Intent(Settings.ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS).setData(Uri.parse("package:" + getPackageName())),
             new Intent("android.settings.APP_DATA_USAGE").setData(Uri.parse("package:" + getPackageName())),
             new Intent(Settings.ACTION_DATA_USAGE_SETTINGS),
             new Intent(Settings.ACTION_DATA_ROAMING_SETTINGS),
             new Intent(Settings.ACTION_WIRELESS_SETTINGS),
         };
         for (Intent i : tries) {
-            try { startActivity(i); Toast.makeText(this, "לאפשר ל\"שערים\" נתונים ניידים ונתוני רקע", Toast.LENGTH_LONG).show(); return; }
+            try { startActivity(i); Toast.makeText(this, "להדליק \"גישה לא מוגבלת לנתונים\" / \"נתוני רקע\" לשערים", Toast.LENGTH_LONG).show(); return; }
             catch (Exception e) { /* המסך לא קיים ברכב – הבא */ }
         }
         try { openAppSettings(); } catch (Exception e) { Toast.makeText(this, "לא נמצא מסך הגדרות נתונים ברכב", Toast.LENGTH_LONG).show(); }
