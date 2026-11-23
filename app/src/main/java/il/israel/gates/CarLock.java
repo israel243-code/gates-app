@@ -28,9 +28,9 @@ final class CarLock {
     static synchronized void watch(Context c) {
         if (watching) return; watching = true;
         try {
-            c.getApplicationContext().registerReceiver(new BroadcastReceiver() {
-                @Override public void onReceive(Context x, Intent i) { unlocked = false; }
-            }, new IntentFilter(Intent.ACTION_SCREEN_OFF));
+            BroadcastReceiver r = new BroadcastReceiver() { @Override public void onReceive(Context x, Intent i) { unlocked = false; } };
+            IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+            if (android.os.Build.VERSION.SDK_INT >= 33) c.getApplicationContext().registerReceiver(r, f, Context.RECEIVER_NOT_EXPORTED); else c.getApplicationContext().registerReceiver(r, f);
         } catch (Exception e) { /* בלי */ }
     }
 

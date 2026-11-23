@@ -62,7 +62,7 @@
         </activity-alias>
 
         <activity android:name=".SettingsActivity" android:exported="false" />
-        <activity android:name=".PatternActivity" android:exported="false" android:screenOrientation="unspecified" />
+        <activity android:name=".PatternActivity" android:exported="false" />
         <activity android:name=".ClipsActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <service android:name=".WorkoutService" android:exported="false" android:foregroundServiceType="location" />

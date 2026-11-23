@@ -47,7 +47,6 @@ public class PatternActivity extends Activity {
     }
 
     private void back() { startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)); finish(); }
-    @Override public void onBackPressed() { back(); }
 
     private void done(String pattern) {
         if (!CarLock.hasPattern(this)) {
