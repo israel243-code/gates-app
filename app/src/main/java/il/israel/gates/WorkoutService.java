@@ -30,7 +30,7 @@ import java.util.Locale;
 // 🏃 מעקב ריצה / הליכה ב-GPS (21/11). רק בלחיצה בדף "הכושר שלי"; שירות חזית כדי שימשיך גם כשהמסך כבוי.
 // בסיום: האימון נשמר בקובץ (workouts-pending) ונשלח לשרת דרך הקישור האישי (/gcfg?wk=1) – בלי רשת יישלח בפעם הבאה.
 public class WorkoutService extends Service implements LocationListener {
-    static final String CH = "workout";
+    static final String CH = "workout_live"; // 23/11: ערוץ חדש בחשיבות רגילה (בלי צליל) – כדי שיוצג במסך הנעילה; הישן "workout" היה נמוך
     static volatile boolean on = false, paused = false, gps = false;
     static volatile String type = "walk", msg = "";
     static volatile long start = 0, pausedMs = 0, pauseAt = 0;
@@ -68,9 +68,16 @@ public class WorkoutService extends Service implements LocationListener {
 
     @Override public int onStartCommand(Intent i, int flags, int id) {
         if (i == null) { stopSelf(); return START_NOT_STICKY; } // לא ממשיכים אימון "רפאים" אחרי שהמערכת סגרה את האפליקציה
+        if ("pause".equals(i.getAction())) { if (on) { togglePause(); update(); } return START_NOT_STICKY; } // כפתורים בהתראה
+        if ("stop".equals(i.getAction())) { if (on) stopSelf(); return START_NOT_STICKY; }
         if (on) return START_NOT_STICKY;
         NotificationManager nm = getSystemService(NotificationManager.class);
-        if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(new NotificationChannel(CH, "אימון", NotificationManager.IMPORTANCE_LOW));
+        if (Build.VERSION.SDK_INT >= 26) {
+            try { nm.deleteNotificationChannel("workout"); } catch (Exception e) { /* אין */ }
+            NotificationChannel ch = new NotificationChannel(CH, "אימון פעיל", NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setSound(null, null); ch.enableVibration(false); ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC); ch.setShowBadge(false);
+            nm.createNotificationChannel(ch);
+        }
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(7, notif("מתחיל…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION); else startForeground(7, notif("מתחיל…"));
         } catch (Exception e) { msg = "⚠️ אין הרשאת מיקום – אשר מיקום בהגדרות"; stopSelf(); return START_NOT_STICKY; }
@@ -105,13 +112,30 @@ public class WorkoutService extends Service implements LocationListener {
 
     private void update() { getSystemService(NotificationManager.class).notify(7, notif(text())); }
     private String text() {
-        long s = dur(); String t = String.format(Locale.US, "%d:%02d", s / 60, s % 60);
-        return (paused ? "⏸ מושהה · " : "") + t + " · " + String.format(Locale.US, "%.2f", dist / 1000) + " ק\"מ" + (gps ? "" : " · מחפש GPS");
+        long s = dur(); String km = String.format(Locale.US, "%.2f", dist / 1000) + " ק\"מ";
+        String pace = "";
+        if (dist >= 50 && s > 0) { long p = Math.round(s / (dist / 1000)); if (p < 3600) pace = " · " + String.format(Locale.US, "%d:%02d", p / 60, p % 60) + " דק׳/ק\"מ"; }
+        return (paused ? "⏸ מושהה · " : "") + km + pace + (gps ? "" : " · מחפש GPS");
     }
+    // 23/11: מסך נעילה – שעון רץ, ק"מ, קצב, כפתורי השהה / סיום; באנדרואיד 16 – "עדכון חי" (מוצמד)
     private Notification notif(String text) {
         PendingIntent pi = PendingIntent.getActivity(this, 7, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pp = PendingIntent.getService(this, 71, new Intent(this, WorkoutService.class).setAction("pause"), PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent ps = PendingIntent.getService(this, 72, new Intent(this, WorkoutService.class).setAction("stop"), PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CH) : new Notification.Builder(this);
-        return b.setSmallIcon(android.R.drawable.ic_menu_mylocation).setContentTitle(("run".equals(type) ? "🏃 ריצה" : "🚶 הליכה")).setContentText(text).setOngoing(true).setContentIntent(pi).build();
+        b.setSmallIcon(android.R.drawable.ic_menu_mylocation).setContentTitle(("run".equals(type) ? "🏃 ריצה" : "🚶 הליכה")).setContentText(text)
+            .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(pi).setVisibility(Notification.VISIBILITY_PUBLIC).setCategory(Notification.CATEGORY_WORKOUT);
+        if (on && !paused && start > 0) b.setUsesChronometer(true).setShowWhen(true).setWhen(System.currentTimeMillis() - dur() * 1000);
+        else b.setShowWhen(false);
+        if (on) {
+            b.addAction(new Notification.Action.Builder(null, paused ? "▶ המשך" : "⏸ השהה", pp).build());
+            b.addAction(new Notification.Action.Builder(null, "⏹ סיום ושמירה", ps).build());
+        }
+        if (Build.VERSION.SDK_INT >= 36) {
+            try { Notification.Builder.class.getMethod("setRequestPromotedOngoing", boolean.class).invoke(b, true); } catch (Exception e) { /* אין */ }
+            try { Notification.Builder.class.getMethod("setShortCriticalText", String.class).invoke(b, String.format(Locale.US, "%.1f ק\"מ", dist / 1000)); } catch (Exception e) { /* אין */ }
+        }
+        return b.build();
     }
 
     @Override public void onDestroy() {
