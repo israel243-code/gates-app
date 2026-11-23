@@ -37,7 +37,7 @@ public class SettingsActivity extends Activity {
     private TextView status;
     private final Handler h = new Handler(Looper.getMainLooper());
 
-    @Override protected void onCreate(Bundle b) { super.onCreate(b); Ui.theme(this); getWindow().setStatusBarColor(Color.parseColor("#1E3A8A")); build(); }
+    @Override protected void onCreate(Bundle b) { super.onCreate(b); if (CarLock.guard(this)) return; Ui.theme(this); getWindow().setStatusBarColor(Color.parseColor("#1E3A8A")); build(); }
     @Override protected void onResume() { super.onResume(); build(); }
     @Override protected void onPause() { super.onPause(); h.removeCallbacksAndMessages(null); }
     @Override public void onRequestPermissionsResult(int code, String[] p, int[] r) { build(); }

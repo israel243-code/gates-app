@@ -25,7 +25,7 @@ public class ClipsActivity extends Activity {
     private String kind = "";
     private VideoView player;
 
-    @Override protected void onCreate(Bundle b) { super.onCreate(b); Ui.theme(this); list(); }
+    @Override protected void onCreate(Bundle b) { super.onCreate(b); if (CarLock.guard(this)) return; Ui.theme(this); list(); }
 
     private void list() {
         player = null;

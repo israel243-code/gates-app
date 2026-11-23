@@ -53,6 +53,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent i) {
         super.onNewIntent(i);
+        String un = i.getStringExtra("unlockUrl"); // 🔐 23/11: אחרי תבנית במסך הרכב – הדף שביקשו (הדשבורד)
+        if (un != null && web != null && un.startsWith("https://")) { web.loadUrl(un); return; }
         String once = i.getStringExtra("loadOnce"); // 📸 22/11: אחרי צילום מסך – עורך + שאלה מה לעשות
         if (once != null && web != null && Prefs.valid(Prefs.url(this)) && once.startsWith("https://")) { web.loadUrl(once); return; }
         if (take(i)) show();
@@ -258,6 +260,7 @@ public class MainActivity extends Activity {
     }
 
     private void openWeb() { openWeb(startUrl()); }
+    private void askUnlock(String url) { startActivity(new Intent(this, PatternActivity.class).putExtra("url", url)); }
     // 📵 23/11: עותק של הדף בקובץ של האפליקציה – נשמר אחרי כל טעינה מוצלחת (פעם בשעה לכל כתובת), ונפתח כשאין אינטרנט
     private volatile boolean savedShown = false;
     private final java.util.Map<String, Long> savedAt = new java.util.HashMap<>();
@@ -302,6 +305,7 @@ public class MainActivity extends Activity {
 
     private void openWeb(String start) {
         savedShown = false;
+        if (CarLock.needed(this) && !CarLock.isGatesPage(this, start) && Prefs.valid(Prefs.url(this))) start = Prefs.url(this); // 🔐 מסך הרכב נעול: מתחילים בדף השערים
         web = new WebView(this);
         web.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         WebSettings ws = web.getSettings();
@@ -322,12 +326,14 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView v, String url) { if (!savedShown) savePage(url); }
             @Override
-            public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) { try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
+            public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) {
+                if (url != null && url.startsWith("https://") && host != null && host.equals(Uri.parse(url).getHost()) && CarLock.needed(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, url)) { v.stopLoading(); askUnlock(url); v.loadUrl(Prefs.url(MainActivity.this)); return; } // 🔐 23/11 try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
                 // באפליקציה נשארים רק דפי השערים; כניסה עם גוגל (גוגל חוסמת בתוך אפליקציות), וואטסאפ, OwnTracks וכו' – בחוץ
                 boolean inside = "https".equals(u.getScheme()) && host != null && host.equals(u.getHost()) && !u.getPath().endsWith("/google");
+                if (inside && CarLock.needed(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, u.toString())) { askUnlock(u.toString()); return true; } // 🔐 23/11: מסך הרכב – רק דף השערים בלי תבנית
                 if (inside) return false;
                 if ("mail.google.com".equals(u.getHost())) { // 📧 מייל: אפליקציית Gmail (המייל עצמו, ואם לא – פתיחת Gmail), אחרת הדפדפן (18/11)
                     try { startActivity(new Intent(Intent.ACTION_VIEW, u).setPackage("com.google.android.gm")); return true; } catch (Exception e) { /* Gmail לא מקבל את הקישור */ }
@@ -462,6 +468,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         CarCheck.run(this, "בפתיחת האפליקציה"); // רכב מחובר אבל לא משדר – מתחילים
+        if (web != null && CarLock.needed(this) && web.getUrl() != null && !CarLock.isGatesPage(this, web.getUrl()) && Prefs.valid(Prefs.url(this))) web.loadUrl(Prefs.url(this)); // 🔐 הרכב כבה (נעול שוב) – חזרה לדף השערים
         // נעילה בכל כניסה (אם נבחרה): אחרי דקה מחוץ לאפליקציה – שוב אימות
         if (web != null && Prefs.lock(this) == 2 && !authing && System.currentTimeMillis() - unlockedAt > 60000) {
             authing = true; web.setVisibility(View.INVISIBLE);
