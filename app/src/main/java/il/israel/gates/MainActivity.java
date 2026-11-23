@@ -258,17 +258,50 @@ public class MainActivity extends Activity {
     }
 
     private void openWeb() { openWeb(startUrl()); }
+    // 📵 23/11: עותק של הדף בקובץ של האפליקציה – נשמר אחרי כל טעינה מוצלחת (פעם בשעה לכל כתובת), ונפתח כשאין אינטרנט
+    private volatile boolean savedShown = false;
+    private final java.util.Map<String, Long> savedAt = new java.util.HashMap<>();
+    private java.io.File pageFile(String url) {
+        try { byte[] h = java.security.MessageDigest.getInstance("SHA-1").digest(url.getBytes(java.nio.charset.StandardCharsets.UTF_8)); StringBuilder b = new StringBuilder(); for (int i = 0; i < 8; i++) b.append(String.format("%02x", h[i])); return new java.io.File(getFilesDir(), "page-" + b + ".html"); } catch (Exception e) { return null; }
+    }
+    private String savedPage(String url) {
+        try { java.io.File f = pageFile(url); return f != null && f.exists() ? new String(java.nio.file.Files.readAllBytes(f.toPath()), java.nio.charset.StandardCharsets.UTF_8) : null; } catch (Exception e) { return null; }
+    }
+    private void savePage(final String url) {
+        try {
+            Uri u = Uri.parse(url);
+            if (url == null || !url.startsWith("https://") || siteHost == null || !siteHost.equals(u.getHost()) || !u.getPath().startsWith("/gate/")) return;
+            Long last = savedAt.get(url); if (last != null && System.currentTimeMillis() - last < 3600000) return;
+            savedAt.put(url, System.currentTimeMillis());
+            final String cookie = android.webkit.CookieManager.getInstance().getCookie(url), ua = web.getSettings().getUserAgentString();
+            new Thread(() -> {
+                try {
+                    java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    h.setConnectTimeout(8000); h.setReadTimeout(10000); h.setInstanceFollowRedirects(false); h.setRequestProperty("User-Agent", ua);
+                    if (cookie != null) h.setRequestProperty("Cookie", cookie);
+                    if (h.getResponseCode() != 200 || String.valueOf(h.getContentType()).indexOf("text/html") < 0) { h.disconnect(); return; }
+                    byte[] body; try (java.io.InputStream in = h.getInputStream()) { body = readAll(in); } h.disconnect();
+                    String html = new String(body, java.nio.charset.StandardCharsets.UTF_8);
+                    if (!html.contains("GatesApp") || body.length > 3000000) return; // רק הדף האמיתי (לא דף כניסה / שגיאה)
+                    java.io.File f = pageFile(url), tmp = new java.io.File(getFilesDir(), "page.tmp"); if (f == null) return;
+                    java.nio.file.Files.write(tmp.toPath(), body); tmp.renameTo(f);
+                } catch (Exception e) { /* בלי רשת – נשאר העותק הקודם */ }
+            }).start();
+        } catch (Exception e) { /* בלי */ }
+    }
+    private static byte[] readAll(java.io.InputStream in) throws java.io.IOException { java.io.ByteArrayOutputStream o = new java.io.ByteArrayOutputStream(); byte[] b = new byte[16384]; int n; while ((n = in.read(b)) > 0) o.write(b, 0, n); return o.toByteArray(); }
     private volatile boolean offlineShown = false, netWatched = false;
     private boolean online() { try { android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE); android.net.NetworkInfo ni = cm.getActiveNetworkInfo(); return ni != null && ni.isConnected(); } catch (Exception e) { return true; } }
     // כשהתקשורת חוזרת: חזרה לטעינה רגילה; ממסך "אין חיבור" – פותחים שוב את הדף. הדף עצמו ממשיך לבד (ופתיחה שבתור נשלחת)
     private void watchNet() {
         if (netWatched || android.os.Build.VERSION.SDK_INT < 24) return; netWatched = true;
         try { ((android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE)).registerDefaultNetworkCallback(new android.net.ConnectivityManager.NetworkCallback() {
-            @Override public void onAvailable(android.net.Network n) { runOnUiThread(() -> { if (web != null) web.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT); if (offlineShown) { offlineShown = false; openWeb(); } }); }
+            @Override public void onAvailable(android.net.Network n) { runOnUiThread(() -> { if (web != null) web.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT); if (offlineShown || savedShown) { offlineShown = false; savedShown = false; openWeb(); } }); }
         }); } catch (Exception e) { /* בלי */ }
     }
 
     private void openWeb(String start) {
+        savedShown = false;
         web = new WebView(this);
         web.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         WebSettings ws = web.getSettings();
@@ -283,8 +316,11 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, android.webkit.WebResourceError e) {
+                if (r.isForMainFrame() && !savedShown) { String u0 = r.getUrl().toString(), html = savedPage(u0); if (html != null) { savedShown = true; v.loadDataWithBaseURL(u0, html, "text/html", "utf-8", u0); return; } } // 📵 23/11: העותק שהאפליקציה שמרה בעצמה (מסך הרכב לא שמר עותק בדפדפן)
                 if (r.isForMainFrame()) { WebSettings s2 = v.getSettings(); if (s2.getCacheMode() != WebSettings.LOAD_CACHE_ONLY) { s2.setCacheMode(WebSettings.LOAD_CACHE_ONLY); v.reload(); return; } offlineShown = true; showOffline(); } // קודם העותק השמור, ורק אם אין – מסך "אין חיבור" // בלי קליטה: מסך בעברית, בלי להציג את הקישור הסודי (18/11)
             }
+            @Override
+            public void onPageFinished(WebView v, String url) { if (!savedShown) savePage(url); }
             @Override
             public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) { try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
             @Override
