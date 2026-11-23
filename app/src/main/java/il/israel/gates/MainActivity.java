@@ -327,7 +327,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView v, String url) { if (!savedShown) savePage(url); }
             @Override
             public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) {
-                if (url != null && url.startsWith("https://") && host != null && host.equals(Uri.parse(url).getHost()) && CarLock.needed(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, url)) { v.stopLoading(); askUnlock(url); v.loadUrl(Prefs.url(MainActivity.this)); return; } // 🔐 23/11 try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
+                if (url != null && url.startsWith("https://") && host != null && host.equals(Uri.parse(url).getHost()) && CarLock.needed(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, url)) { v.stopLoading(); askUnlock(url); v.loadUrl(Prefs.url(MainActivity.this)); return; } /* 🔐 23/11 */ try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
