@@ -97,6 +97,21 @@ public class SettingsActivity extends Activity {
         // --- 2. רכבים ---
         Ui.button(this, root, "📸 צלם את המסך ושלח לבדיקה", false, v -> Snap.take(this, "מסך ההגדרות")); // 22/11
         if (Prefs.carScreen(this)) Ui.button(this, root, "🎥 קליפים מהרכב (מהכרטיס, בלי אינטרנט)", true, v -> startActivity(new Intent(this, ClipsActivity.class)));
+        if (car) { // 📶 23/11: בדיקת הסים – מובנית, עובדת גם בלי אינטרנט
+            LinearLayout sk = Ui.card(this, root, "📶 בדיקת הסים של הרכב");
+            Ui.note(this, sk, "בודק דרך כל רשת (גם הסים) אם יש גישה לגוגל, לשרת שלנו ול-BYD. לא משנה שום הגדרה. לבדיקה מדויקת – לכבות קודם את הנקודה החמה. התוצאה נשלחת לבדיקה כשיש חיבור.");
+            final TextView res = new TextView(this); res.setTextSize(12 * Ui.k(this)); res.setTextColor(Ui.INK); res.setTextIsSelectable(true);
+            Ui.button(this, sk, "▶ הרץ בדיקת סים", true, v -> {
+                v.setEnabled(false); res.setText("⏳ בודק… (עד דקה)");
+                new Thread(() -> {
+                    String r = SimCheck.run(getApplicationContext(), (pr) -> runOnUiThread(() -> res.setText("⏳ " + pr)));
+                    SimCheck.save(getApplicationContext(), r);
+                    runOnUiThread(() -> { v.setEnabled(true); res.setText(r.replaceAll("(?m)^יכולות:.*\\n?", "")); });
+                }).start();
+            });
+            sk.addView(res);
+            SimCheck.flush(this);
+        }
         LinearLayout cars = Ui.card(this, root, car ? "🚗 מסך הרכב" : "🚗 הרכבים שלי");
         Switch auto = new Switch(this);
         auto.setText(car ? "🚪 פתיחה אוטומטית – השערים נפתחים לבד כשהרכב מתקרב" : "🚪 פתיחה אוטומטית – כשנכנסים לרכב, השערים נפתחים לבד כשמתקרבים");
