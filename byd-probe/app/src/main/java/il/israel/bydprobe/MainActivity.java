@@ -116,6 +116,28 @@ public class MainActivity extends Activity {
         });
         root.addView(screenBtn, root.indexOfChild(row) + 1, new LinearLayout.LayoutParams(-1, dp(64)));
 
+        // 📶 בדיקת הסים של הרכב (23/11) – מובנית, עובדת בלי אינטרנט; הדוח נשלח לשרת כשיש חיבור ("📤 שלח לשרת")
+        final Button simBtn = btn("📶 בדיקת הסים של הרכב (לכבות קודם נקודה חמה)", Color.rgb(14, 116, 144));
+        simBtn.setOnClickListener(v -> {
+            simBtn.setEnabled(false); simBtn.setAlpha(0.4f); report.setText("");
+            say("⏳ בודק את הרשתות… (עד דקה)");
+            new Thread(() -> {
+                String r;
+                try { r = SimCheck.run(getApplicationContext(), what -> say("⏳ " + what)); }
+                catch (Throwable e) { r = "בדיקת רכב – הסים נכשלה: " + e; }
+                final String res = r;
+                ui.post(() -> {
+                    last = (last == null ? "" : last + "\n\n") + res;
+                    report.setText(res.replaceAll("(?m)^יכולות:.*\\n?", ""));
+                    status.setText("✅ בדיקת הסים הסתיימה. כשיש אינטרנט – \"📤 שלח לשרת\".");
+                    simBtn.setEnabled(true); simBtn.setAlpha(1f);
+                    sendBtn.setEnabled(true); sendBtn.setAlpha(1f);
+                    sendNow(true); // אם יש חיבור כלשהו – נשלח מיד
+                });
+            }).start();
+        });
+        root.addView(simBtn, root.indexOfChild(screenBtn) + 1, new LinearLayout.LayoutParams(-1, dp(64)));
+
         // 🧩 סקריפט מתעדכן: מוריד מהשרת את קוד הבדיקה העדכני (חתום) ומריץ – בלי התקנת אפליקציה
         modBtn = btn("🧩 הרץ סקריפט מתעדכן", Color.rgb(79, 70, 229));
         modBtn.setOnClickListener(v -> {

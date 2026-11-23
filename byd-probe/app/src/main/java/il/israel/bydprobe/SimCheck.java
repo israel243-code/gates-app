@@ -1,4 +1,4 @@
-package il.israel.gates;
+package il.israel.bydprobe;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -28,7 +28,7 @@ final class SimCheck {
     };
 
     static String run(Context c, Consumer<String> progress) {
-        StringBuilder out = new StringBuilder("סקריפט – בדיקת הסים מתוך אפליקציית השערים (קריאה בלבד) – ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date())).append("\n");
+        StringBuilder out = new StringBuilder("בדיקת רכב – הסים (קריאה בלבד) – ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date())).append("\n");
         final ConnectivityManager cm = (ConnectivityManager) c.getSystemService(Context.CONNECTIVITY_SERVICE);
         // ניסיון לבקש את רשת הסים (ייתכן שאין הרשאה באפליקציה הזו – אז רק הרשתות שכבר קיימות)
         final Network[] got = { null };
