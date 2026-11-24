@@ -36,6 +36,8 @@ public class MainActivity extends Activity {
     private boolean authing = false;
     private GeolocationPermissions.Callback geoCb; // מחכים לתשובת המשתמש להרשאת המיקום (18/11)
     private String geoOrigin;
+    private android.webkit.ValueCallback<Uri[]> fileCb; // 📎 בחירת קבצים מהדף (24/11)
+    private Uri camUri;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -368,6 +370,29 @@ public class MainActivity extends Activity {
                     else { micReq = r; requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, 77); }
                 });
             }
+            // 📎 24/11: צירוף קבצים / תמונות / סרטונים מהדף (צ'אט, עבודה) – קבצים, גלריה, מצלמה וצילום וידאו
+            @Override public boolean onShowFileChooser(WebView v, android.webkit.ValueCallback<Uri[]> cb, WebChromeClient.FileChooserParams p) {
+                if (fileCb != null) fileCb.onReceiveValue(null);
+                fileCb = cb; camUri = null;
+                Intent pick;
+                try { pick = p.createIntent(); } catch (Exception e) { pick = new Intent(Intent.ACTION_GET_CONTENT); pick.setType("*/*"); }
+                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                if (pick.getType() == null || pick.getType().isEmpty()) pick.setType("*/*");
+                if (p.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE) pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                java.util.ArrayList<Intent> extra = new java.util.ArrayList<>();
+                try {
+                    android.content.ContentValues cv = new android.content.ContentValues();
+                    cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "IMG_" + System.currentTimeMillis() + ".jpg");
+                    cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                    camUri = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                    if (camUri != null) { Intent cam = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE); cam.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, camUri); cam.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION); extra.add(cam); }
+                } catch (Exception e) { camUri = null; }
+                extra.add(new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE));
+                Intent ch = Intent.createChooser(pick, "צירוף");
+                ch.putExtra(Intent.EXTRA_INITIAL_INTENTS, extra.toArray(new Intent[0]));
+                try { startActivityForResult(ch, 91); } catch (Exception e) { fileCb = null; cb.onReceiveValue(null); Toast.makeText(MainActivity.this, "אין אפליקציה לבחירת קבצים", Toast.LENGTH_SHORT).show(); return false; }
+                return true;
+            }
             @Override public boolean onJsAlert(WebView v, String url, String msg, android.webkit.JsResult r) {
                 new android.app.AlertDialog.Builder(MainActivity.this).setMessage(msg).setPositiveButton("הבנתי", (d, w) -> r.confirm()).setOnCancelListener((d) -> r.confirm()).show(); return true; }
             @Override public boolean onJsConfirm(WebView v, String url, String msg, android.webkit.JsResult r) {
@@ -477,6 +502,23 @@ public class MainActivity extends Activity {
                     () -> { authing = false; finish(); });
         }
         if (web != null) web.evaluateJavascript("window.appRefresh && appRefresh()", null);
+    }
+
+    @Override
+    protected void onActivityResult(int code, int rc, Intent data) {
+        super.onActivityResult(code, rc, data);
+        if (code != 91 || fileCb == null) return;
+        Uri[] out = null;
+        if (rc == RESULT_OK) {
+            java.util.ArrayList<Uri> L = new java.util.ArrayList<>();
+            if (data != null && data.getClipData() != null) { for (int i = 0; i < data.getClipData().getItemCount(); i++) L.add(data.getClipData().getItemAt(i).getUri()); }
+            else if (data != null && data.getData() != null) L.add(data.getData());
+            else if (camUri != null) L.add(camUri); // צילום במצלמה – התמונה נשמרה בכתובת שהכנו
+            if (!L.isEmpty()) out = L.toArray(new Uri[0]);
+        }
+        if (out == null && camUri != null) { try { getContentResolver().delete(camUri, null, null); } catch (Exception e) { } } // תמונה ריקה שלא צולמה
+        else if (out != null && camUri != null && !java.util.Arrays.asList(out).contains(camUri)) { try { getContentResolver().delete(camUri, null, null); } catch (Exception e) { } }
+        fileCb.onReceiveValue(out); fileCb = null; camUri = null;
     }
 
     @Override
