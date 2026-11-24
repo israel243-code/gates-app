@@ -68,12 +68,12 @@ public class SettingsActivity extends Activity {
         boolean nt = Build.VERSION.SDK_INT < 33 || has(Manifest.permission.POST_NOTIFICATIONS);
         boolean car = Prefs.carScreen(this); // 🖥️ מסך הרכב: בלי בלוטות' ובלי חיסכון סוללה (19/11, הבעלים: "לא רלוונטי ברכב")
         boolean bt = car || Build.VERSION.SDK_INT < 31 || has(Manifest.permission.BLUETOOTH_CONNECT);
-        boolean batt = car || getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
+        boolean batt = getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName()); // 24/11: גם ברכב – בלי זה BYD עוצרת את האפליקציה בכיבוי
         boolean files = !car || Build.VERSION.SDK_INT > 32 || has(Manifest.permission.READ_EXTERNAL_STORAGE); // 🎥 קליפים מה-DVR (מסך הרכב)
         if (car) Net.start(this);
         boolean data = !car || Net.bound || (Net.cellSeen && !Net.cellBlocked); // 📶 23/11: נתונים ניידים של הרכב
-        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? (files ? 1 : 0) + (data ? 1 : 0) : (bt ? 1 : 0) + (batt ? 1 : 0));
-        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך 5");
+        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? (files ? 1 : 0) + (data ? 1 : 0) + (batt ? 1 : 0) : (bt ? 1 : 0) + (batt ? 1 : 0));
+        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך " + (car ? 6 : 5));
         Ui.step(this, perm, 1, fine, "מיקום", "כדי לדעת כשאתה מתקרב לשער", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 2));
         Ui.step(this, perm, 2, bg, "מיקום כל הזמן", Build.VERSION.SDK_INT >= 30 ? "בהגדרות: מיקום ← \"לאפשר כל הזמן\"" : "נדרש לשידור ברקע", "פתח", v -> {
@@ -87,7 +87,7 @@ public class SettingsActivity extends Activity {
         if (car) Ui.step(this, perm, 4, files, "קבצים", "כדי לשלוח לטלפון קליפים מהמצלמות של הרכב", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 5));
         if (car) Ui.step(this, perm, 5, data, "📶 תקשורת – נתונים ניידים", Net.status(this).replace("📶 ", ""), "פתח", v -> openDataSettings());
-        if (!car) Ui.step(this, perm, 5, batt, "בלי חיסכון סוללה", "אחרת אנדרואיד חוסם התחלה ברקע", "פתח", v -> {
+        Ui.step(this, perm, car ? 6 : 5, batt, car ? "פעולה ברקע – בלי חיסכון סוללה" : "בלי חיסכון סוללה", car ? "כדי שהאפליקציה תתחיל לבד בכל התנעה של הרכב" : "אחרת אנדרואיד חוסם התחלה ברקע", "פתח", v -> {
             try { startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); }
             catch (Exception e) { openAppSettings(); }
         });

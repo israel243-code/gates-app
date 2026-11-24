@@ -493,6 +493,13 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         CarCheck.run(this, "בפתיחת האפליקציה"); // רכב מחובר אבל לא משדר – מתחילים
+        if (Prefs.carScreen(this)) { // 24/11 (הבעלים): האפליקציה מבקשת בעצמה "פעולה ברקע" – בלי זה BYD עוצרת אותה בכיבוי והיא לא מתחילה לבד בהתנעה
+            try { android.os.PowerManager pm = getSystemService(android.os.PowerManager.class); android.content.SharedPreferences sp = getSharedPreferences("gates", MODE_PRIVATE);
+                if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName()) && System.currentTimeMillis() - sp.getLong("battAsk", 0) > 6 * 3600000L) {
+                    sp.edit().putLong("battAsk", System.currentTimeMillis()).apply(); LocalEngine.log("🔋 מבקש הרשאת פעולה ברקע");
+                    startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); }
+            } catch (Exception e) { LocalEngine.log("🔋 אין מסך הרשאת פעולה ברקע במערכת הזו (" + e.getClass().getSimpleName() + ")"); }
+        }
         if (web != null && CarLock.needed(this) && web.getUrl() != null && !CarLock.isGatesPage(this, web.getUrl()) && Prefs.valid(Prefs.url(this))) web.loadUrl(Prefs.url(this)); // 🔐 הרכב כבה (נעול שוב) – חזרה לדף השערים
         // נעילה בכל כניסה (אם נבחרה): אחרי דקה מחוץ לאפליקציה – שוב אימות
         if (web != null && Prefs.lock(this) == 2 && !authing && System.currentTimeMillis() - unlockedAt > 60000) {
