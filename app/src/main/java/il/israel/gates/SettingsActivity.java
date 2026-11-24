@@ -314,7 +314,8 @@ public class SettingsActivity extends Activity {
 
     /** 24/11: הרכב חוסם את מסך הנגישות הרגיל ("אינה תומכת בפעולה זו") – כל לחיצה מנסה דרך אחרת להגיע אליו */
     private int accWay = 0;
-    private void accTry() {
+    private void accTry() { accTry(0); }
+    private void accTry(int depth) {
         Intent[] ways = {
             new Intent().setClassName("com.android.settings", "com.android.settings.Settings$AccessibilitySettingsActivity"),
             new Intent().setClassName("com.android.settings", "com.android.settings.SubSettings").putExtra(":settings:show_fragment", "com.android.settings.accessibility.AccessibilitySettings"),
@@ -327,6 +328,6 @@ public class SettingsActivity extends Activity {
         android.widget.Toast.makeText(this, "דרך " + (n + 1) + " מתוך " + ways.length + (n >= 3 ? " – בהגדרות לחפש \"נגישות\"" : "") + ". אם נחסם – ללחוץ שוב \"פתח\"", android.widget.Toast.LENGTH_LONG).show();
         LocalEngine.log("♿ ניסיון לפתוח נגישות – דרך " + (n + 1));
         try { startActivity(ways[n].addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
-        catch (Exception e) { LocalEngine.log("♿ דרך " + (n + 1) + " לא קיימת ברכב (" + e.getClass().getSimpleName() + ")"); accTry(); }
+        catch (Exception e) { LocalEngine.log("♿ דרך " + (n + 1) + " לא קיימת ברכב (" + e.getClass().getSimpleName() + ")"); if (depth < ways.length - 1) accTry(depth + 1); }
     }
 }
