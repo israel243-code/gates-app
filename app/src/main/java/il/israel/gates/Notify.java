@@ -16,7 +16,7 @@ final class Notify {
 
     static void gate(Context c, String label, boolean ok, String text) {
         if (ok ? !Prefs.flag(c, "nOpen", true) : !Prefs.flag(c, "nFail", true)) return;
-        post(c, ok ? "🚪 " + label + " נפתח" : "⚠️ " + label + " לא נפתח", ok ? "" : text);
+        post(c, ok ? "🚪 " + label + " נפתח" : "⚠️ " + label + " לא נפתח", ok ? "" : text, 1000 + Math.abs(label.hashCode() % 500), ok ? 120000 : 1800000); // 24/11: התראה אחת לכל שער (מחליפה את הקודמת), נעלמת לבד – פתיחה אחרי 2 דק', תקלה אחרי חצי שעה
     }
 
     /** 🚧 שער נתקע (22/11): נפתח לפני דקה+ ואתה עדיין עומד מולו – התראה עם כפתור "פתח שוב". עם נעילה לפני פתיחה – הכפתור פותח את האפליקציה. */
@@ -31,14 +31,15 @@ final class Notify {
         b.setContentTitle("🚧 " + label + " – השער תקוע?").setContentText("נפתח לפני יותר מדקה ואתה עדיין מולו").setSmallIcon(R.drawable.ic_stat)
             .setContentIntent(app).setAutoCancel(true).setWhen(System.currentTimeMillis()).setShowWhen(true)
             .addAction(new Notification.Action.Builder(null, "🔓 פתח שוב", again).build());
+        if (Build.VERSION.SDK_INT >= 26) b.setTimeoutAfter(300000); // 24/11: נעלם לבד אחרי 5 דקות
         try { nm.notify(id, b.build()); } catch (SecurityException e) { /* אין הרשאת התראות */ }
     }
 
     static void service(Context c, String text) {
-        if (Prefs.flag(c, "nService", false)) post(c, text, "");
+        if (Prefs.flag(c, "nService", false)) post(c, text, "", 900, 60000);
     }
 
-    private static void post(Context c, String title, String body) {
+    private static void post(Context c, String title, String body, int id, long timeoutMs) {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         if (nm == null) return;
         boolean loud = Prefs.flag(c, "nSound", true);
@@ -51,6 +52,7 @@ final class Notify {
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, ch) : new Notification.Builder(c);
         b.setContentTitle(title).setSmallIcon(R.drawable.ic_stat).setContentIntent(open).setAutoCancel(true).setWhen(System.currentTimeMillis()).setShowWhen(true);
         if (body != null && !body.isEmpty()) b.setContentText(body).setStyle(new Notification.BigTextStyle().bigText(body));
-        try { nm.notify(seq++, b.build()); } catch (SecurityException e) { /* אין הרשאת התראות */ }
+        if (Build.VERSION.SDK_INT >= 26 && timeoutMs > 0) b.setTimeoutAfter(timeoutMs);
+        try { nm.notify(id > 0 ? id : seq++, b.build()); } catch (SecurityException e) { /* אין הרשאת התראות */ }
     }
 }
