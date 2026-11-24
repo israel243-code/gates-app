@@ -62,7 +62,7 @@ public class CarCheck extends BroadcastReceiver {
         try { ov = android.provider.Settings.canDrawOverlays(c) ? "כן" : "לא"; } catch (Exception e) { /* ? */ }
         try { ex = android.os.Build.VERSION.SDK_INT < 31 || c.getSystemService(android.app.AlarmManager.class).canScheduleExactAlarms() ? "כן" : "לא"; } catch (Exception e) { /* ? */ }
         try { if (android.os.Build.VERSION.SDK_INT >= 28) bk = String.valueOf(c.getSystemService(android.app.usage.UsageStatsManager.class).getAppStandbyBucket()); } catch (Exception e) { /* ? */ }
-        LocalEngine.log("🔧 מצב הרשאות ברכב: פטור סוללה " + bat + " · הצגה מעל אפליקציות " + ov + " · התראה מדויקת " + ex + " · דלי המתנה " + bk + " (10=פעיל, 40=נדיר)");
+        LocalEngine.log("🔧 מצב הרשאות ברכב: פטור סוללה " + bat + " · הצגה מעל אפליקציות " + ov + " · התראה מדויקת " + ex + " · דלי המתנה " + bk + " · נגישות " + (WakeAccess.on(c) ? "כן" : "לא") + " (10=פעיל, 40=נדיר)");
     }
 
     static void run(Context c, String why) {

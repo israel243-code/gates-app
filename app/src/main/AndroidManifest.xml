@@ -75,7 +75,8 @@
             android:foregroundServiceType="location" />
 
         <!-- גיבוי: רכב שכבר מחובר אחרי עדכון / הפעלה של הטלפון (19/11) -->
-        <receiver android:name=".CarCheck" android:exported="false">
+        <!-- 24/11: exported=true – אירועי ההתנעה של BYD נשלחים מאפליקציית מערכת אחרת; עם false הם נחסמו -->
+        <receiver android:name=".CarCheck" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -101,6 +102,15 @@
                 <action android:name="android.bluetooth.headset.profile.action.CONNECTION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- 24/11 (כמו OverDrive): שירות נגישות – המערכת מפעילה אותו בעצמה בכל הדלקה, גם אחרי שהרכב עצר את האפליקציה -->
+        <service android:name=".WakeAccess" android:label="שערים – הפעלה אוטומטית ברכב" android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/wake_access" />
+        </service>
 
         <receiver android:name=".StopReceiver" android:exported="false" />
         <receiver android:name=".ReopenReceiver" android:exported="false" />

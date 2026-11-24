@@ -94,6 +94,8 @@ public class SettingsActivity extends Activity {
         if (car) { boolean ov = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this); // 24/11: כמו OverDrive – מאפשר לאפליקציה להתעורר לבד בהתנעה
             Ui.step(this, perm, 7, ov, "הצגה מעל אפליקציות", "כדי שהאפליקציה תפעל לבד בהתנעה (בלי לפתוח אותה)", "פתח", v -> {
                 try { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { openAppSettings(); } }); }
+        if (car) Ui.step(this, perm, 8, WakeAccess.on(this), "הפעלה אוטומטית בהתנעה (נגישות)", "הכי חשוב: בנגישות להפעיל את \"שערים – הפעלה אוטומטית ברכב\". לא קורא שום דבר מהמסך", "פתח", v -> { // 24/11
+            try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } catch (Exception e) { openAppSettings(); } });
         if (car) Ui.note(this, perm, "אם הרכב כותב ש\"המדיה לא נתמכת\" – המסך הזה לא קיים במערכת של הרכב ואי אפשר לאשר מכאן. זה לא חובה: האפליקציה עדיין מתחילה לשדר בהתנעה; ההרשאות האלה רק משפרות את ההתעוררות. אפשר לאשר אותן רק בפקודה (ADB).");
         if (Build.MANUFACTURER.toLowerCase().matches(".*(xiaomi|redmi|poco).*"))
             Ui.note(this, perm, "בשיאומי / רדמי: גם בהגדרות האפליקציה ← \"חיסכון בסוללה\" ← \"ללא הגבלות\", ו\"הפעלה אוטומטית\" מופעלת.");
