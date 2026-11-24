@@ -40,7 +40,7 @@ final class LocalEngine {
 
     /** 📤 שליחת היומן לשרת – רק במצב מנהל (הבעלים, 18/11: "לחבר את 'מה קרה לאחרונה' לשרת, כרגע רק למנהל"). רץ על תהליכון הרשת. */
     static void upload(Context c) {
-        if (!Prefs.isDash(Prefs.admin(c))) return;
+        if (!Prefs.isDash(Prefs.admin(c)) && !Prefs.carScreen(c)) return; // 24/11: גם מסך הרכב שולח יומן (הקישור שלו = של הבעלים) – כדי להבין למה לא התחיל לבד
         init(c);
         java.io.File f = new java.io.File(c.getFilesDir(), "pending.log");
         String body;
@@ -56,6 +56,7 @@ final class LocalEngine {
             HttpURLConnection h = (HttpURLConnection) new URL(url).openConnection();
             h.setConnectTimeout(8000); h.setReadTimeout(8000); h.setRequestMethod("POST"); h.setDoOutput(true);
             h.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); h.setRequestProperty("User-Agent", "GatesApp/1");
+            if (Prefs.carScreen(c)) body = "🚗 " + body.replace("\n", "\n🚗 ");
             try (OutputStream o = h.getOutputStream()) { o.write(("applog=" + Uri.encode(body)).getBytes(StandardCharsets.UTF_8)); }
             h.getResponseCode();
         } catch (Exception e) { synchronized (LOG) { try (java.io.FileWriter w = new java.io.FileWriter(f, true)) { w.write(body + "\n"); } catch (Exception e2) { /* אין */ } } } // בלי רשת – יישלח בפעם הבאה

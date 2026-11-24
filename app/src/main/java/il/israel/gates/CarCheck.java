@@ -22,7 +22,9 @@ public class CarCheck extends BroadcastReceiver {
             run(c, "בדיקה תקופתית");
             return;
         }
-        run(c, "אחרי " + (Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction()) ? "עדכון" : "הפעלה של הטלפון"));
+        if (Prefs.carScreen(c)) LocalEngine.log("🖥️ התעוררות: " + i.getAction()); // 24/11: יומן – לדעת אילו אירועים מגיעים כשהרכב נדלק
+        run(c, "אחרי " + (Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction()) ? "עדכון" : "הפעלה של " + (Prefs.carScreen(c) ? "מסך הרכב" : "הטלפון")));
+        if (Prefs.carScreen(c)) { final Context x = c.getApplicationContext(); new Thread(() -> LocalEngine.upload(x)).start(); }
     }
 
     static void startRecheck(Context c) { next(c); }
