@@ -45,7 +45,7 @@ public class ClipsActivity extends Activity {
         SimpleDateFormat day = new SimpleDateFormat("EEEE d/M", new Locale("iw")), tm = new SimpleDateFormat("HH:mm", Locale.US);
         String lastDay = ""; int n = 0;
         for (File f : fs) {
-            String k = f.getName().startsWith("S_") ? "sentry" : f.getName().startsWith("R_") ? "drive" : "other";
+            String k = ClipAgent.kindOf(f);
             if (!kind.isEmpty() && !kind.equals(k)) continue;
             if (++n > 300) break;
             String d = day.format(f.lastModified());

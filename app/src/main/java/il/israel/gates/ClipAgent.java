@@ -83,13 +83,13 @@ final class ClipAgent {
                 String id = id(f.getAbsolutePath());
                 FILES.put(id, f);
                 String n = f.getName();
-                items.put(new JSONObject().put("id", id).put("k", n.startsWith("S_") ? "sentry" : n.startsWith("R_") ? "drive" : "other")
+                items.put(new JSONObject().put("id", id).put("k", kindOf(f))
                         .put("s", f.length()).put("t", f.lastModified()));
             }
         }
         boolean perm = android.os.Build.VERSION.SDK_INT < 23 || c.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED;
         int ver = 0; try { ver = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionCode; } catch (Exception e) { /* אין */ }
-        JSONObject diag = new JSONObject().put("perm", perm).put("roots", dRoots).put("dirs", dDirs).put("days", dDays).put("files", items.length()).put("ver", ver).put("err", lastErr).put("net", Net.type(c)).put("sim", Net.bound ? "bound" : Net.cellBlocked ? "blocked" : Net.cellSeen ? "avail" : "no").put("fails", fails); // 22/11: למה אין קליפים – מוצג בדף
+        JSONObject diag = new JSONObject().put("perm", perm).put("roots", dRoots).put("dirs", dDirs).put("days", dDays).put("files", items.length()).put("ver", ver).put("err", lastErr).put("net", Net.type(c)).put("sim", Net.bound ? "bound" : Net.cellBlocked ? "blocked" : Net.cellSeen ? "avail" : "no").put("fails", fails).put("paths", dPaths); // 22/11: למה אין קליפים – מוצג בדף
         String r = post(BASE + "?step=clipidx&t=" + Uri.encode(t), new JSONObject().put("items", items).put("diag", diag).toString().getBytes(StandardCharsets.UTF_8), "application/json");
         if (r == null) { fails++; return; }
         lastErr = ""; fails = 0;
@@ -102,7 +102,29 @@ final class ClipAgent {
         }
     }
 
-    /** קבצי mp4 בתיקיות 360Videos בכל מקום אחסון, מ-3 הימים האחרונים */
+    /** 24/11: חיפוש חכם – כל סרטון מ-3 הימים האחרונים בכל האחסון (לא רק 360Videos של BYD), כי אפליקציות הקלטה שונות שומרות בתיקיות שונות.
+     *  הסריקה המלאה של העץ – פעם ב-10 דקות (מוצאת "תיקיות סרטונים"); בכל דקה – רק התיקיות שנמצאו. */
+    static volatile String dPaths = "";
+    private static List<File> vdirs = new ArrayList<>();
+    private static long vdirsAt = 0;
+    private static boolean isVid(String n) { n = n.toLowerCase(java.util.Locale.ROOT); return n.endsWith(".mp4") || n.endsWith(".ts") || n.endsWith(".mkv") || n.endsWith(".avi") || n.endsWith(".mov"); }
+    private static void walk(File d, int depth, long since, java.util.Set<File> found) {
+        if (depth > 6 || found.size() > 80) return;
+        File[] fs = d.listFiles(); if (fs == null) return;
+        boolean has = false;
+        for (File f : fs) {
+            String n = f.getName();
+            if (f.isDirectory()) { if (n.startsWith(".") || n.equals("Android") || n.equalsIgnoreCase("LOST.DIR") || n.equalsIgnoreCase("Thumbs") || n.equalsIgnoreCase("AlertThumbs")) continue; if (f.lastModified() >= since - 86400000L || depth < 2) walk(f, depth + 1, since, found); }
+            else if (!has && isVid(n) && f.lastModified() >= since && f.length() > 300000) has = true;
+        }
+        if (has) found.add(d);
+    }
+    static String kindOf(File f) {
+        String n = f.getName(), p = f.getPath().toLowerCase(java.util.Locale.ROOT);
+        if (n.startsWith("S_") || p.contains("sentry") || p.contains("guard") || p.contains("parking") || p.contains("event") || p.contains("shomer")) return "sentry";
+        if (n.startsWith("R_") || p.contains("dvr") || p.contains("dashcam") || p.contains("drive") || p.contains("record") || p.contains("normal")) return "drive";
+        return "other";
+    }
     static List<File> scan() {
         List<File> out = new ArrayList<>();
         List<File> roots = new ArrayList<>();
@@ -110,25 +132,20 @@ final class ClipAgent {
         File[] st = new File("/storage").listFiles();
         if (st != null) for (File f : st) if (!f.getName().equals("self") && !f.getName().equals("emulated")) roots.add(f);
         long since = System.currentTimeMillis() - KEEP_MS;
-        int nd = 0, ny = 0;
-        for (File r : roots) {
-            File base = new File(r, "360Videos");
-            File[] modes = base.listFiles();
-            if (modes == null) continue;
-            nd++;
-            for (File m : modes) {
-                File[] days = m.listFiles();
-                if (days == null) continue;
-                for (File d : days) {
-                    if (!d.isDirectory() || d.lastModified() < since) continue;
-                    ny++;
-                    File[] fs = d.listFiles();
-                    if (fs == null) continue;
-                    for (File f : fs) if (f.getName().endsWith(".mp4") && f.lastModified() >= since && f.length() > 0) out.add(f);
-                }
-            }
+        if (System.currentTimeMillis() - vdirsAt > 600000L || vdirs.isEmpty() && System.currentTimeMillis() - vdirsAt > 120000L) {
+            java.util.Set<File> found = new java.util.LinkedHashSet<>();
+            for (File r : roots) walk(r, 0, since, found);
+            vdirs = new ArrayList<>(found); vdirsAt = System.currentTimeMillis();
+            StringBuilder b = new StringBuilder(); for (File d : vdirs) { if (b.length() > 600) break; b.append(d.getPath()).append(" | "); }
+            dPaths = b.toString();
+            LocalEngine.log("🎥 תיקיות סרטונים: " + vdirs.size() + (vdirs.isEmpty() ? "" : " – " + dPaths));
         }
-        dRoots = roots.size(); dDirs = nd; dDays = ny;
+        int ny = 0;
+        for (File d : vdirs) {
+            File[] fs = d.listFiles(); if (fs == null) continue; ny++;
+            for (File f : fs) if (f.isFile() && isVid(f.getName()) && f.lastModified() >= since && f.length() > 300000) out.add(f);
+        }
+        dRoots = roots.size(); dDirs = vdirs.size(); dDays = ny;
         out.sort((a, b) -> Long.compare(b.lastModified(), a.lastModified()));
         return out.size() > 600 ? out.subList(0, 600) : out;
     }
