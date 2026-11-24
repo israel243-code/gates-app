@@ -53,7 +53,20 @@ public class CarCheck extends BroadcastReceiver {
         } catch (SecurityException e) { am.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi); }
     }
 
+    private static long stateAt = 0;
+    /** 24/11: מצב ההרשאות שמשפיעות על התעוררות ברקע – ביומן (פעם בחצי שעה), כדי לדעת מה באמת מאושר ברכב */
+    static void logState(Context c) {
+        if (System.currentTimeMillis() - stateAt < 1800000L) return; stateAt = System.currentTimeMillis();
+        String bat = "?", ov = "?", ex = "?", bk = "?";
+        try { bat = c.getSystemService(android.os.PowerManager.class).isIgnoringBatteryOptimizations(c.getPackageName()) ? "כן" : "לא"; } catch (Exception e) { /* ? */ }
+        try { ov = android.provider.Settings.canDrawOverlays(c) ? "כן" : "לא"; } catch (Exception e) { /* ? */ }
+        try { ex = android.os.Build.VERSION.SDK_INT < 31 || c.getSystemService(android.app.AlarmManager.class).canScheduleExactAlarms() ? "כן" : "לא"; } catch (Exception e) { /* ? */ }
+        try { if (android.os.Build.VERSION.SDK_INT >= 28) bk = String.valueOf(c.getSystemService(android.app.usage.UsageStatsManager.class).getAppStandbyBucket()); } catch (Exception e) { /* ? */ }
+        LocalEngine.log("🔧 מצב הרשאות ברכב: פטור סוללה " + bat + " · הצגה מעל אפליקציות " + ov + " · התראה מדויקת " + ex + " · דלי המתנה " + bk + " (10=פעיל, 40=נדיר)");
+    }
+
     static void run(Context c, String why) {
+        if (Prefs.carScreen(c)) logState(c);
         next(c); // שומר על שרשרת הבדיקה כל 2 דקות (אותו מזהה – מחליף, לא מכפיל)
         if (LocService.running || !Prefs.auto(c) || Prefs.locUrl(c) == null) return;
         if (Prefs.carScreen(c)) { // מסך הרכב: הרכב עצמו משדר, בלי לחכות לבלוטות'
