@@ -95,7 +95,7 @@ public class SettingsActivity extends Activity {
             Ui.step(this, perm, 7, ov, "הצגה מעל אפליקציות", "כדי שהאפליקציה תפעל לבד בהתנעה (בלי לפתוח אותה)", "פתח", v -> {
                 try { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { openAppSettings(); } }); }
         if (car) Ui.step(this, perm, 8, WakeAccess.on(this), "הפעלה אוטומטית בהתנעה (נגישות)", "הכי חשוב: בנגישות להפעיל את \"שערים – הפעלה אוטומטית ברכב\". לא קורא שום דבר מהמסך", "פתח", v -> { // 24/11
-            try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } catch (Exception e) { openAppSettings(); } });
+            accTry(); });
         if (car) Ui.note(this, perm, "אם הרכב כותב ש\"המדיה לא נתמכת\" – המסך הזה לא קיים במערכת של הרכב ואי אפשר לאשר מכאן. זה לא חובה: האפליקציה עדיין מתחילה לשדר בהתנעה; ההרשאות האלה רק משפרות את ההתעוררות. אפשר לאשר אותן רק בפקודה (ADB).");
         if (Build.MANUFACTURER.toLowerCase().matches(".*(xiaomi|redmi|poco).*"))
             Ui.note(this, perm, "בשיאומי / רדמי: גם בהגדרות האפליקציה ← \"חיסכון בסוללה\" ← \"ללא הגבלות\", ו\"הפעלה אוטומטית\" מופעלת.");
@@ -310,5 +310,23 @@ public class SettingsActivity extends Activity {
             catch (Exception e) { /* המסך לא קיים ברכב – הבא */ }
         }
         try { openAppSettings(); } catch (Exception e) { Toast.makeText(this, "לא נמצא מסך הגדרות נתונים ברכב", Toast.LENGTH_LONG).show(); }
+    }
+
+    /** 24/11: הרכב חוסם את מסך הנגישות הרגיל ("אינה תומכת בפעולה זו") – כל לחיצה מנסה דרך אחרת להגיע אליו */
+    private int accWay = 0;
+    private void accTry() {
+        Intent[] ways = {
+            new Intent().setClassName("com.android.settings", "com.android.settings.Settings$AccessibilitySettingsActivity"),
+            new Intent().setClassName("com.android.settings", "com.android.settings.SubSettings").putExtra(":settings:show_fragment", "com.android.settings.accessibility.AccessibilitySettings"),
+            new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addCategory(Intent.CATEGORY_DEFAULT),
+            new Intent().setClassName("com.android.settings", "com.android.settings.Settings"),
+            new Intent(Settings.ACTION_SETTINGS),
+            new Intent().setClassName("com.android.tv.settings", "com.android.tv.settings.MainSettings"),
+        };
+        int n = accWay % ways.length; accWay++;
+        android.widget.Toast.makeText(this, "דרך " + (n + 1) + " מתוך " + ways.length + (n >= 3 ? " – בהגדרות לחפש \"נגישות\"" : "") + ". אם נחסם – ללחוץ שוב \"פתח\"", android.widget.Toast.LENGTH_LONG).show();
+        LocalEngine.log("♿ ניסיון לפתוח נגישות – דרך " + (n + 1));
+        try { startActivity(ways[n].addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+        catch (Exception e) { LocalEngine.log("♿ דרך " + (n + 1) + " לא קיימת ברכב (" + e.getClass().getSimpleName() + ")"); accTry(); }
     }
 }
