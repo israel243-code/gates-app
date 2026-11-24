@@ -72,8 +72,8 @@ public class SettingsActivity extends Activity {
         boolean files = !car || Build.VERSION.SDK_INT > 32 || has(Manifest.permission.READ_EXTERNAL_STORAGE); // 🎥 קליפים מה-DVR (מסך הרכב)
         if (car) Net.start(this);
         boolean data = !car || Net.bound || (Net.cellSeen && !Net.cellBlocked); // 📶 23/11: נתונים ניידים של הרכב
-        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? (files ? 1 : 0) + (data ? 1 : 0) + (batt ? 1 : 0) : (bt ? 1 : 0) + (batt ? 1 : 0));
-        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך " + (car ? 6 : 5));
+        int done = (fine ? 1 : 0) + (bg ? 1 : 0) + (nt ? 1 : 0) + (car ? (files ? 1 : 0) + (data ? 1 : 0) + (batt ? 1 : 0) + ((Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)) ? 1 : 0) : (bt ? 1 : 0) + (batt ? 1 : 0));
+        LinearLayout perm = Ui.card(this, root, "🔐 הרשאות · " + done + " מתוך " + (car ? 7 : 5));
         Ui.step(this, perm, 1, fine, "מיקום", "כדי לדעת כשאתה מתקרב לשער", "אפשר",
                 v -> requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 2));
         Ui.step(this, perm, 2, bg, "מיקום כל הזמן", Build.VERSION.SDK_INT >= 30 ? "בהגדרות: מיקום ← \"לאפשר כל הזמן\"" : "נדרש לשידור ברקע", "פתח", v -> {
@@ -91,6 +91,9 @@ public class SettingsActivity extends Activity {
             try { startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); }
             catch (Exception e) { openAppSettings(); }
         });
+        if (car) { boolean ov = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this); // 24/11: כמו OverDrive – מאפשר לאפליקציה להתעורר לבד בהתנעה
+            Ui.step(this, perm, 7, ov, "הצגה מעל אפליקציות", "כדי שהאפליקציה תפעל לבד בהתנעה (בלי לפתוח אותה)", "פתח", v -> {
+                try { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { openAppSettings(); } }); }
         if (Build.MANUFACTURER.toLowerCase().matches(".*(xiaomi|redmi|poco).*"))
             Ui.note(this, perm, "בשיאומי / רדמי: גם בהגדרות האפליקציה ← \"חיסכון בסוללה\" ← \"ללא הגבלות\", ו\"הפעלה אוטומטית\" מופעלת.");
 

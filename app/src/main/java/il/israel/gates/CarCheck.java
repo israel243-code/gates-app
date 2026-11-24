@@ -23,8 +23,18 @@ public class CarCheck extends BroadcastReceiver {
             return;
         }
         if (Prefs.carScreen(c)) LocalEngine.log("🖥️ התעוררות: " + i.getAction()); // 24/11: יומן – לדעת אילו אירועים מגיעים כשהרכב נדלק
+        if (Prefs.carScreen(c) && !LocService.running && Prefs.auto(c)) wakeUi(c); // 24/11 (כמו OverDrive): מפעילים את המסך הראשי ומיד מורידים לרקע – תהליך שנפתח פעם אחת שורד
         run(c, "אחרי " + (Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction()) ? "עדכון" : "הפעלה של " + (Prefs.carScreen(c) ? "מסך הרכב" : "הטלפון")));
         if (Prefs.carScreen(c)) { final Context x = c.getApplicationContext(); new Thread(() -> LocalEngine.upload(x)).start(); }
+    }
+
+    /** פותח את MainActivity ומיד מוריד לרקע (דורש "הצגה מעל אפליקציות" באנדרואיד 10+; בלי זה – רק התחלת שידור) */
+    static void wakeUi(Context c) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.canDrawOverlays(c)) { LocalEngine.log("🖥️ אין הרשאת \"הצגה מעל אפליקציות\" – לא פותח את המסך ברקע"); return; }
+            c.startActivity(new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("minimize", true));
+            LocalEngine.log("🖥️ פתחתי את המסך הראשי ברקע");
+        } catch (Exception e) { LocalEngine.log("⚠️ פתיחת המסך ברקע נחסמה (" + e.getClass().getSimpleName() + ")"); }
     }
 
     static void startRecheck(Context c) { next(c); }
@@ -36,7 +46,11 @@ public class CarCheck extends BroadcastReceiver {
         if (am == null) return;
         android.app.PendingIntent pi = android.app.PendingIntent.getBroadcast(c, 49, new Intent(c, CarCheck.class).setAction(RECHECK),
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
-        am.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, android.os.SystemClock.elapsedRealtime() + 120000L, pi);
+        long at = android.os.SystemClock.elapsedRealtime() + 120000L;
+        try { // 24/11 (כמו OverDrive): התראה מדויקת – "גם כשהמכשיר ישן" – מעירה את האפליקציה כל 2 דקות
+            if (android.os.Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi);
+            else am.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi);
+        } catch (SecurityException e) { am.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi); }
     }
 
     static void run(Context c, String why) {

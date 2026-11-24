@@ -493,6 +493,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         CarCheck.run(this, "בפתיחת האפליקציה"); // רכב מחובר אבל לא משדר – מתחילים
+        if (getIntent() != null && getIntent().getBooleanExtra("minimize", false)) { getIntent().removeExtra("minimize"); moveTaskToBack(true); } // 24/11: נפתחה ברקע בהתנעה – חוזרים לרקע
         if (Prefs.carScreen(this)) { // 24/11 (הבעלים): האפליקציה מבקשת בעצמה "פעולה ברקע" – בלי זה BYD עוצרת אותה בכיבוי והיא לא מתחילה לבד בהתנעה
             try { android.os.PowerManager pm = getSystemService(android.os.PowerManager.class); android.content.SharedPreferences sp = getSharedPreferences("gates", MODE_PRIVATE);
                 if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName()) && System.currentTimeMillis() - sp.getLong("battAsk", 0) > 6 * 3600000L) {
