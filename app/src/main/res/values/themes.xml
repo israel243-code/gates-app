@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 25/11 (הבעלים: "יש מסך לבן לשנייה"): רקע כהה מהרגע הראשון של הפתיחה, לפני שהדף נטען -->
+    <style name="GatesTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorBackground">#0B1220</item>
+        <item name="android:windowBackground">#0B1220</item>
+        <item name="android:statusBarColor">#0B1220</item>
+    </style>
+</resources>
