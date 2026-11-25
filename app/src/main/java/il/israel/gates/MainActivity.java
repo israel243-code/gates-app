@@ -371,7 +371,9 @@ public class MainActivity extends Activity {
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) { return fastPage(r); } // ⚡ 25/11
             @Override
-            public void onPageFinished(WebView v, String url) { if (!savedShown) savePage(url); }
+            public void onPageFinished(WebView v, String url) { if (!savedShown) savePage(url); if (slideDir != 0) slideEnd(); }
+            @Override
+            public void onPageCommitVisible(WebView v, String url) { if (slideDir != 0) v.postDelayed(MainActivity.this::slideEnd, 60); } // 🎞️ הדף החדש מוכן לתצוגה
             @Override
             public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) {
                 if (url != null && url.startsWith("https://") && host != null && host.equals(Uri.parse(url).getHost()) && CarLock.needed(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, url)) { v.stopLoading(); askUnlock(url); v.loadUrl(Prefs.url(MainActivity.this)); return; } /* 🔐 23/11 */ try { pageHost = Uri.parse(url).getHost(); } catch (Exception e) { pageHost = ""; } }
@@ -381,7 +383,7 @@ public class MainActivity extends Activity {
                 // באפליקציה נשארים רק דפי השערים; כניסה עם גוגל (גוגל חוסמת בתוך אפליקציות), וואטסאפ, OwnTracks וכו' – בחוץ
                 boolean inside = "https".equals(u.getScheme()) && host != null && host.equals(u.getHost()) && !u.getPath().endsWith("/google");
                 if (inside && CarLock.needed(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, u.toString())) { askUnlock(u.toString()); return true; } // 🔐 23/11: מסך הרכב – רק דף השערים בלי תבנית
-                if (inside) return false;
+                if (inside) { String cur = v.getUrl(); if (r.isForMainFrame() && cur != null && !samePage(cur, u.toString()) && slideDir == 0) slideStart(CarLock.isGatesPage(MainActivity.this, u.toString()) ? -1 : 1); return false; } // 🎞️ 25/11
                 if ("mail.google.com".equals(u.getHost())) { // 📧 מייל: אפליקציית Gmail (המייל עצמו, ואם לא – פתיחת Gmail), אחרת הדפדפן (18/11)
                     try { startActivity(new Intent(Intent.ACTION_VIEW, u).setPackage("com.google.android.gm")); return true; } catch (Exception e) { /* Gmail לא מקבל את הקישור */ }
                     Intent g = getPackageManager().getLaunchIntentForPackage("com.google.android.gm");
@@ -451,9 +453,48 @@ public class MainActivity extends Activity {
         });
         web.setBackgroundColor(Color.parseColor("#EEF2F7"));
         getWindow().setStatusBarColor(Color.parseColor("#1E3A8A"));
-        setContentView(web);
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+        root.setBackgroundColor(Color.parseColor("#EEF2F7"));
+        root.addView(web, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        cover = new android.widget.ImageView(this); cover.setVisibility(View.GONE); cover.setScaleType(android.widget.ImageView.ScaleType.FIT_XY); cover.setElevation(8);
+        root.addView(cover, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(root);
         web.loadUrl(start);
     }
+
+    // 🎞️ מעבר חלק בין דפים (25/11, הבעלים: "המעברים ממש לא חלקים, לא נראה אפליקציה רצינית"): בזמן מעבר בין דף השערים לדשבורד –
+    // "צילום" של המסך הנוכחי מעל הדף, הדף החדש נטען מתחתיו, וכשהוא מוכן לתצוגה הצילום מחליק הצידה והדף החדש נכנס (בלי לבן ובלי קפיצה).
+    // dir = 1: הדף הנוכחי זז ימינה והחדש נכנס משמאל; -1: להפך. אם הדף לא מוכן תוך 2.5 שניות – מחליקים בכל מקרה.
+    android.widget.ImageView cover; int slideDir = 0; long slideAt = 0;
+    void slideStart(int dir) {
+        if (web == null || cover == null || web.getWidth() == 0) return;
+        try {
+            android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(web.getWidth(), web.getHeight(), android.graphics.Bitmap.Config.RGB_565);
+            web.draw(new android.graphics.Canvas(bm));
+            cover.animate().cancel(); web.animate().cancel();
+            cover.setImageBitmap(bm); cover.setTranslationX(0); cover.setVisibility(View.VISIBLE);
+            slideDir = dir == 0 ? 1 : dir; slideAt = System.currentTimeMillis();
+            final long at = slideAt;
+            web.postDelayed(() -> { if (slideAt == at) slideEnd(); }, 2500);
+        } catch (Throwable e) { cover.setVisibility(View.GONE); slideDir = 0; }
+    }
+    void slideEnd() {
+        if (slideDir == 0 || cover == null || web == null) return;
+        int w = web.getWidth(), d = slideDir; slideDir = 0; slideAt = 0;
+        android.view.animation.DecelerateInterpolator ip = new android.view.animation.DecelerateInterpolator(1.6f);
+        web.setTranslationX(-d * w * 0.3f);
+        web.animate().translationX(0).setDuration(280).setInterpolator(ip).start();
+        cover.animate().translationX(d * w).setDuration(280).setInterpolator(ip).withEndAction(() -> { cover.setVisibility(View.GONE); cover.setImageDrawable(null); cover.setTranslationX(0); }).start();
+    }
+    /** מעבר לדף אחר באתר שלנו עם החלקה (מהדף: GatesApp.nav) */
+    void slideTo(String url, int dir) {
+        if (web == null || url == null || !url.startsWith("https://")) return;
+        if (CarLock.needed(this) && !CarLock.isGatesPage(this, url)) { askUnlock(url); return; }
+        String cur = web.getUrl();
+        if (cur != null && samePage(cur, url)) { web.loadUrl(url); return; }
+        slideStart(dir); web.loadUrl(url);
+    }
+    static boolean samePage(String a, String b) { int i = a.indexOf('#'), j = b.indexOf('#'); return (i < 0 ? a : a.substring(0, i)).equals(j < 0 ? b : b.substring(0, j)); }
 
     /** פונקציות שהדף יכול לקרוא: window.GatesApp.openSettings() וכו'. */
     volatile String siteHost = null, pageHost = ""; // 🔒 A4 (21/11): הגשר פועל רק כשהדף הראשי הוא מהאתר שלנו
@@ -518,6 +559,7 @@ public class MainActivity extends Activity {
         }
         /** 🎵 (25/11): בזמן הקלטה בדף – עוצר את המוזיקה (כמו שיחת טלפון); false = משחרר והמוזיקה חוזרת */
         @JavascriptInterface public void prefetch(String u) { if (!ok() || u == null) return; try { if (shellUrl(Uri.parse(u))) refreshShell(u, 600000); } catch (Exception e) { /* בלי */ } } // ⚡ 25/11: עותק מראש של הדשבורד (להחלקה מדף השערים)
+        @JavascriptInterface public void nav(String url, int dir) { if (!ok()) return; runOnUiThread(() -> slideTo(url, dir)); } // 🎞️ 25/11: מעבר עם החלקה (ההחלקה בדף השערים)
         @JavascriptInterface public void musicPause(boolean on) { if (!ok()) return; runOnUiThread(() -> audioFocus(on)); }
         /** 🗣️ (25/11): הכתבה חיה בצ'אט – הדף מקבל את הטקסט תוך כדי דיבור ב-window.__gaDict(סוג, טקסט) */
         @JavascriptInterface public boolean dictOk() { return android.speech.SpeechRecognizer.isRecognitionAvailable(MainActivity.this); }
@@ -635,7 +677,10 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed();
+        if (web != null && web.canGoBack()) {
+            try { android.webkit.WebBackForwardList h = web.copyBackForwardList(); int i = h.getCurrentIndex(); if (i > 0 && !samePage(h.getItemAtIndex(i).getUrl(), h.getItemAtIndex(i - 1).getUrl())) slideStart(-1); } catch (Exception e) { }
+            web.goBack();
+        } else super.onBackPressed();
     }
 
     @Override
