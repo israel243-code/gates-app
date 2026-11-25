@@ -34,6 +34,9 @@ final class Net {
                 @Override public void onCapabilitiesChanged(Network n, NetworkCapabilities nc) { decide(cm); }
             });
         } catch (Exception e) { LocalEngine.log("📶 אין אפשרות לבקש את הסים: " + e.getClass().getSimpleName()); }
+        // 25/11 (הבעלים: "כתוב שאין תקשורת"): בדיקה אחת שנכשלה השאירה את האפליקציה בלי אינטרנט עד שינוי רשת הבא – עכשיו בודקים שוב כל דקה כל עוד לא עברנו לסים
+        final android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+        h.postDelayed(new Runnable() { @Override public void run() { if (!bound) decide(cm); h.postDelayed(this, 60000); } }, 60000);
     }
 
     // 22/11 (תיקון): עוברים לסים רק אחרי בדיקה אמיתית שהשרת עונה דרכו – אם הרכב חוסם את הסים לאפליקציה, לא עוברים (אחרת האפליקציה נשארת בלי כלום)
@@ -46,7 +49,7 @@ final class Net {
                 if (defOk) { if (bound) { cm.bindProcessToNetwork(null); bound = false; LocalEngine.log("📶 חוזר לרשת הרגילה"); } }
                 else if (cell != null && !bound) {
                     if (reach(cell)) { cellBlocked = false; bound = cm.bindProcessToNetwork(cell); LocalEngine.log("📶 אין אינטרנט ברשת הרגילה – עובר לסים של הרכב" + (bound ? "" : " (נכשל)")); }
-                    else { cellBlocked = true; LocalEngine.log("📶 הסים של הרכב חוסם את האפליקציה – נשארים ברשת הרגילה"); }
+                    else { if (!cellBlocked) LocalEngine.log("📶 הסים של הרכב לא עונה כרגע – אנסה שוב בעוד דקה"); cellBlocked = true; }
                 } else if (cell == null && bound) { cm.bindProcessToNetwork(null); bound = false; }
             } catch (Exception e) { /* בלי */ } finally { probing = false; }
         }).start();

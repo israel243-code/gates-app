@@ -559,6 +559,8 @@ public class MainActivity extends Activity {
         }
         /** 🎵 (25/11): בזמן הקלטה בדף – עוצר את המוזיקה (כמו שיחת טלפון); false = משחרר והמוזיקה חוזרת */
         @JavascriptInterface public void prefetch(String u) { if (!ok() || u == null) return; try { if (shellUrl(Uri.parse(u))) refreshShell(u, 600000); } catch (Exception e) { /* בלי */ } } // ⚡ 25/11: עותק מראש של הדשבורד (להחלקה מדף השערים)
+        /** 🌗 (25/11): מצב לילה של המכשיר / הרכב – לדף, במצב תצוגה "לפי המערכת" */
+        @JavascriptInterface public boolean night() { return isNight(); }
         @JavascriptInterface public void nav(String url, int dir) { if (!ok()) return; runOnUiThread(() -> slideTo(url, dir)); } // 🎞️ 25/11: מעבר עם החלקה (ההחלקה בדף השערים)
         @JavascriptInterface public void musicPause(boolean on) { if (!ok()) return; runOnUiThread(() -> audioFocus(on)); }
         /** 🗣️ (25/11): הכתבה חיה בצ'אט – הדף מקבל את הטקסט תוך כדי דיבור ב-window.__gaDict(סוג, טקסט) */
@@ -670,6 +672,16 @@ public class MainActivity extends Activity {
         }
         try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))); LocalEngine.log("🚗 אין מסך הפעלה אוטומטית של BYD – נפתח מסך פרטי האפליקציה"); return "app"; }
         catch (Exception e) { LocalEngine.log("🚗 לא נפתח אף מסך הגדרות (" + e.getClass().getSimpleName() + ")"); return ""; }
+    }
+
+    boolean isNight() { return (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES; }
+    Boolean lastNight = null;
+    /** 🌗 (25/11): הרכב עבר יום / לילה – הדף מתעדכן מיד (בלי לטעון מחדש), וביומן שורה אחת בכל שינוי */
+    @Override public void onConfigurationChanged(android.content.res.Configuration c) {
+        super.onConfigurationChanged(c);
+        boolean n = isNight();
+        if (lastNight == null || lastNight != n) { lastNight = n; LocalEngine.log("🌗 מצב " + (n ? "לילה" : "יום") + " במערכת"); }
+        if (web != null) web.evaluateJavascript("window.__gaNight && __gaNight()", null);
     }
 
     @Override
