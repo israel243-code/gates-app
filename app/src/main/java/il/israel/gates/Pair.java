@@ -32,7 +32,7 @@ final class Pair {
     static void askCode(Activity a) {
         EditText in = new EditText(a);
         in.setInputType(InputType.TYPE_CLASS_NUMBER); in.setTextSize(28); in.setGravity(Gravity.CENTER); in.setHint("123456");
-        new AlertDialog.Builder(a).setTitle("🔢 הקוד שעל מסך הרכב").setView(in)
+        Ui.dialog(a).setTitle("🔢 הקוד שעל מסך הרכב").setView(in)
                 .setPositiveButton("חבר", (d, w) -> send(a, "code=" + in.getText().toString().replaceAll("\\D", "")))
                 .setNegativeButton("ביטול", null).show();
     }
@@ -42,7 +42,7 @@ final class Pair {
     }
 
     static void confirm(Activity a, Runnable go) {
-        new AlertDialog.Builder(a).setTitle("🚗 לחבר את מסך הרכב?")
+        Ui.dialog(a).setTitle("🚗 לחבר את מסך הרכב?")
                 .setMessage("מסך הרכב יקבל את החשבון שלך ואת השערים שלך, ויפתח אותם לבד כשהרכב מתקרב.")
                 .setPositiveButton("✅ חבר", (d, w) -> go.run()).setNegativeButton("ביטול", null).show();
     }

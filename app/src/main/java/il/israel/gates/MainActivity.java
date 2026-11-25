@@ -441,9 +441,9 @@ public class MainActivity extends Activity {
                 return true;
             }
             @Override public boolean onJsAlert(WebView v, String url, String msg, android.webkit.JsResult r) {
-                new android.app.AlertDialog.Builder(MainActivity.this).setMessage(msg).setPositiveButton("הבנתי", (d, w) -> r.confirm()).setOnCancelListener((d) -> r.confirm()).show(); return true; }
+                Ui.dialog(MainActivity.this).setMessage(msg).setPositiveButton("הבנתי", (d, w) -> r.confirm()).setOnCancelListener((d) -> r.confirm()).show(); return true; }
             @Override public boolean onJsConfirm(WebView v, String url, String msg, android.webkit.JsResult r) {
-                new android.app.AlertDialog.Builder(MainActivity.this).setMessage(msg).setPositiveButton("אישור", (d, w) -> r.confirm()).setNegativeButton("ביטול", (d, w) -> r.cancel()).setOnCancelListener((d) -> r.cancel()).show(); return true; }
+                Ui.dialog(MainActivity.this).setMessage(msg).setPositiveButton("אישור", (d, w) -> r.confirm()).setNegativeButton("ביטול", (d, w) -> r.cancel()).setOnCancelListener((d) -> r.cancel()).show(); return true; }
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
                 if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) { cb.invoke(origin, true, false); return; }
@@ -451,15 +451,23 @@ public class MainActivity extends Activity {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 7);
             }
         });
-        web.setBackgroundColor(Color.parseColor("#EEF2F7"));
-        getWindow().setStatusBarColor(Color.parseColor("#1E3A8A"));
-        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
-        root.setBackgroundColor(Color.parseColor("#EEF2F7"));
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this); webRoot = root;
         root.addView(web, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         cover = new android.widget.ImageView(this); cover.setVisibility(View.GONE); cover.setScaleType(android.widget.ImageView.ScaleType.FIT_XY); cover.setElevation(8);
         root.addView(cover, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        applyChrome();
         web.loadUrl(start);
+    }
+    android.widget.FrameLayout webRoot;
+    /** 🌗 25/11: רקע הדף (מה שרואים רגע בין דפים), שורת המצב ומסגרת – לפי מצב התצוגה, בלי הבזק לבן בלילה */
+    void applyChrome() {
+        boolean d = Ui.dark(this); Ui.theme(this);
+        int bg = Color.parseColor(d ? "#0B1220" : "#EEF2F7");
+        if (web != null) web.setBackgroundColor(bg);
+        if (webRoot != null) webRoot.setBackgroundColor(bg);
+        getWindow().getDecorView().setBackgroundColor(bg);
+        getWindow().setStatusBarColor(Color.parseColor(d ? "#0B1220" : "#1E3A8A"));
     }
 
     // 🎞️ מעבר חלק בין דפים (25/11, הבעלים: "המעברים ממש לא חלקים, לא נראה אפליקציה רצינית"): בזמן מעבר בין דף השערים לדשבורד –
@@ -561,6 +569,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void prefetch(String u) { if (!ok() || u == null) return; try { if (shellUrl(Uri.parse(u))) refreshShell(u, 600000); } catch (Exception e) { /* בלי */ } } // ⚡ 25/11: עותק מראש של הדשבורד (להחלקה מדף השערים)
         /** 🌗 (25/11): מצב לילה של המכשיר / הרכב – לדף, במצב תצוגה "לפי המערכת" */
         @JavascriptInterface public boolean night() { return isNight(); }
+        /** 🌗 25/11: הבחירה מהדף נשמרת גם לאפליקציה – הרקע בין דפים, המסכים של האפליקציה והחלונות */
+        @JavascriptInterface public void setUiMode(String m) { if (m == null || !m.matches("light|dark|system")) return; getSharedPreferences("gates", MODE_PRIVATE).edit().putString("uiMode", m).apply(); runOnUiThread(MainActivity.this::applyChrome); }
         @JavascriptInterface public void nav(String url, int dir) { if (!ok()) return; runOnUiThread(() -> slideTo(url, dir)); } // 🎞️ 25/11: מעבר עם החלקה (ההחלקה בדף השערים)
         @JavascriptInterface public void musicPause(boolean on) { if (!ok()) return; runOnUiThread(() -> audioFocus(on)); }
         /** 🗣️ (25/11): הכתבה חיה בצ'אט – הדף מקבל את הטקסט תוך כדי דיבור ב-window.__gaDict(סוג, טקסט) */
@@ -682,6 +692,7 @@ public class MainActivity extends Activity {
         boolean n = isNight();
         if (lastNight == null || lastNight != n) { lastNight = n; LocalEngine.log("🌗 מצב " + (n ? "לילה" : "יום") + " במערכת"); }
         if (web != null) web.evaluateJavascript("window.__gaNight && __gaNight()", null);
+        applyChrome();
     }
 
     @Override

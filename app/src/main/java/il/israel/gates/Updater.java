@@ -48,7 +48,7 @@ final class Updater {
      */
     static void install(Activity a) {
         if (Build.VERSION.SDK_INT >= 26 && !a.getPackageManager().canRequestPackageInstalls()) {
-            new AlertDialog.Builder(a).setTitle("אישור חד-פעמי")
+            Ui.dialog(a).setTitle("אישור חד-פעמי")
                     .setMessage("כדי שהאפליקציה תוכל לעדכן את עצמה, אנדרואיד מבקש לאשר \"התקנה ממקור זה\".\nבמסך שנפתח – מדליקים את המתג, חוזרים, ולוחצים שוב \"בדוק עדכונים\".")
                     .setPositiveButton("פתח", (d, w) -> a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName()))))
                     .setNegativeButton("ביטול", null).show();
@@ -128,7 +128,7 @@ final class Updater {
             a.runOnUiThread(() -> {
                 if (a.isFinishing()) return;
                 if (lv > current(a)) {
-                    new AlertDialog.Builder(a)
+                    Ui.dialog(a)
                             .setTitle("🆕 יש עדכון חדש לאפליקציה")
                             .setMessage("הגרסה שלך: " + currentName(a) + " · העדכון החדש: עדכון " + Math.max(1, lv - BASE) + "\n" + (nt.isEmpty() || nt.equals("בנייה אוטומטית") ? "" : nt + "\n")
                                     + "\nההורדה נעשית בתוך האפליקציה, ובסוף נפתח מסך ההתקנה – לוחצים \"עדכן\". ההגדרות שלך נשמרות.")

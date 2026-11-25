@@ -39,7 +39,7 @@ public class PatternActivity extends Activity {
         LinearLayout k = new LinearLayout(this); k.setOrientation(LinearLayout.VERTICAL); k.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 16));
         root.addView(k);
         Ui.button(this, k, "↩️ חזרה לשערים", false, v -> back());
-        if (CarLock.hasPattern(this)) Ui.button(this, k, "שכחתי את התבנית", false, v -> new android.app.AlertDialog.Builder(this)
+        if (CarLock.hasPattern(this)) Ui.button(this, k, "שכחתי את התבנית", false, v -> Ui.dialog(this)
             .setMessage("התבנית תימחק, ומסך הרכב יתנתק. כדי להתחבר שוב צריך לסרוק את הברקוד מהטלפון שלך (הגדרות ← חיבור מסך רכב). להמשיך?")
             .setPositiveButton("כן, מחק", (d, w) -> { CarLock.forget(this); startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)); finish(); })
             .setNegativeButton("ביטול", null).show());

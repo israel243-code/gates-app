@@ -18,9 +18,20 @@ final class Ui {
             SOFT = Color.parseColor("#F1F5F9"), CARD = Color.WHITE;
     static final int PRI = Color.parseColor("#2563EB"), OK = Color.parseColor("#16A34A"), WARN = Color.parseColor("#D97706");
 
-    /** מצב לילה לפי הטלפון – אותם צבעים כמו בדשבורד (18/11) */
+    /** 🌗 25/11: מה שהבעלים בחר בכפתור מצב התצוגה בדף (בהיר / כהה / לפי המערכת) – גם למסכים של האפליקציה עצמה */
+    static boolean dark(Context c) {
+        String m = c.getSharedPreferences("gates", Context.MODE_PRIVATE).getString("uiMode", "system");
+        if ("dark".equals(m)) return true;
+        if ("light".equals(m)) return false;
+        return (c.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+    /** חלון שאלה / הודעה בצבעים של מצב התצוגה */
+    static android.app.AlertDialog.Builder dialog(Context c) {
+        return new android.app.AlertDialog.Builder(c, dark(c) ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert);
+    }
+    /** מצב לילה – אותם צבעים כמו בדשבורד (18/11; 25/11: לפי הבחירה בכפתור מצב התצוגה) */
     static void theme(Context c) {
-        boolean dark = (c.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        boolean dark = dark(c);
         BG = Color.parseColor(dark ? "#0B1220" : "#EEF2F7");
         INK = Color.parseColor(dark ? "#E2E8F0" : "#0F172A");
         MUTED = Color.parseColor(dark ? "#94A3B8" : "#64748B");
