@@ -45,4 +45,5 @@ dependencies {
     implementation 'androidx.car.app:app:1.4.0'
     // 19/11 (הבעלים אישר): סורק הברקוד של גוגל – לחיבור מסך הרכב
     implementation 'com.google.android.gms:play-services-code-scanner:16.1.0'
+    implementation 'dev.mobile:dadb:1.2.10' // 🔧 25/11 (באישור הבעלים): חיבור לניפוי הבאגים של הרכב – מצב מפתחים (DevMode.java)
 }

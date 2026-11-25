@@ -67,6 +67,7 @@ public class CarCheck extends BroadcastReceiver {
 
     static void run(Context c, String why) {
         if (Prefs.carScreen(c)) logState(c);
+        DevMode.ensure(c); // 🔧 25/11: מצב מפתחים – מדליק לעצמו נגישות / פטור סוללה דרך ניפוי הבאגים של הרכב (רק במסך הרכב)
         next(c); // שומר על שרשרת הבדיקה כל 2 דקות (אותו מזהה – מחליף, לא מכפיל)
         if (LocService.running || !Prefs.auto(c) || Prefs.locUrl(c) == null) return;
         if (Prefs.carScreen(c)) { // מסך הרכב: הרכב עצמו משדר, בלי לחכות לבלוטות'
