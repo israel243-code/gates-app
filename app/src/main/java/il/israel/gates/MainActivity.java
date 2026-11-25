@@ -570,7 +570,7 @@ public class MainActivity extends Activity {
         /** 🚗 (25/11): BYD מבטלת "הפעלה אוטומטית" אחרי כל עדכון – הדף מציג תזכורת פעם אחת לכל גרסה, רק במסך הרכב */
         @JavascriptInterface public boolean autostartNote() { return Prefs.carScreen(MainActivity.this) && getSharedPreferences("gates", MODE_PRIVATE).getInt("asVer", 0) != Updater.current(MainActivity.this); }
         @JavascriptInterface public void autostartAck() { getSharedPreferences("gates", MODE_PRIVATE).edit().putInt("asVer", Updater.current(MainActivity.this)).apply(); LocalEngine.log("🚗 הפעלה אוטומטית: הבעלים סימן שאישר אחרי העדכון"); }
-        @JavascriptInterface public String openAutostart() { if (!ok()) return ""; return openAutostartScreen(); }
+        @JavascriptInterface public String openAutostart() { if (!ok()) return ""; WakeAccess w = WakeAccess.inst; if (w != null && Prefs.carScreen(MainActivity.this) && AutoStart.start(w, "מהכפתור")) return "auto"; return openAutostartScreen(); } // 🚗 25/11: יש נגישות – מדליק לבד
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) { if (!ok()) return;
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 24/11: שירות נגישות שלא קורא כלום מהמסך – רק מחזיק את האפליקציה חיה ומעיר אותה בהדלקה -->
+<!-- 24/11: מחזיק את האפליקציה חיה ומעיר אותה בהדלקה. 25/11: קורא גם את מסך "ניהול הפעלה אוטומטית" של הרכב
+     ולוחץ שם על המתג של "שערים" (AutoStart.java) – רק את המסך הזה, ורק אחרי עדכון או בלחיצה על הכפתור -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:notificationTimeout="60000"
-    android:canRetrieveWindowContent="false" />
+    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds"
+    android:notificationTimeout="1000"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true" />
