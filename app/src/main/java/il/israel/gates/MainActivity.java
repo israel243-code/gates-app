@@ -471,6 +471,8 @@ public class MainActivity extends Activity {
                 else requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, 78);
             });
         }
+        /** 🎵 (25/11): בזמן הקלטה בדף – עוצר את המוזיקה (כמו שיחת טלפון); false = משחרר והמוזיקה חוזרת */
+        @JavascriptInterface public void musicPause(boolean on) { if (!ok()) return; runOnUiThread(() -> audioFocus(on)); }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) { if (!ok()) return;
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");
@@ -483,6 +485,25 @@ public class MainActivity extends Activity {
     void micDone(boolean granted) {
         if (web != null) web.evaluateJavascript("window.__gaMic && __gaMic(" + granted + ")", null);
     }
+
+    /** 🎵 (25/11): "פוקוס שמע" זמני – נגן המוזיקה (ברכב / בטלפון) עוצר, ובשחרור ממשיך */
+    android.media.AudioFocusRequest musicReq = null;
+    void audioFocus(boolean on) {
+        android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+        if (am == null) return;
+        try {
+            if (on) {
+                if (musicReq != null) return;
+                musicReq = new android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                        .setAudioAttributes(new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ASSISTANT).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                        .setOnAudioFocusChangeListener(c -> { }).build();
+                am.requestAudioFocus(musicReq);
+            } else if (musicReq != null) { am.abandonAudioFocusRequest(musicReq); musicReq = null; }
+        } catch (Exception e) { musicReq = null; }
+    }
+
+    @Override
+    protected void onDestroy() { audioFocus(false); super.onDestroy(); }
 
     @Override
     public void onBackPressed() {
