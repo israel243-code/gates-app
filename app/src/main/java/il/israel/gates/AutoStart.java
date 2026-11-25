@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * הרכב (BYD) חוסם הפעלה בהתנעה לכל אפליקציה שהותקנה, ומאפס את זה בכל עדכון. ההגדרה במסך של BYD
  * (com.byd.appstartmanagement): מתג ליד כל אפליקציה – דלוק = חסום, כבוי = מותר.
  * דרך שירות הנגישות (WakeAccess): פותחים את המסך, מוצאים את השורה של "שערים", מכבים את המתג, מוודאים, וסוגרים (חזור).
- * לפי הקוד של OverDrive (AutoStartEnabler). רק במסך הרכב. התוצאה ביומן: "🚗 הפעלה אוטומטית: ...".
+ * לפי הקוד של OverDrive (AutoStartEnabler) – קריאה בלבד. רק במסך הרכב. התוצאה ביומן: "🚗 הפעלה אוטומטית: ...".
  */
 final class AutoStart {
     private AutoStart() {}
