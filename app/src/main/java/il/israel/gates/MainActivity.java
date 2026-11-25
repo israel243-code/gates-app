@@ -519,6 +519,14 @@ public class MainActivity extends Activity {
         /** 🎵 (25/11): בזמן הקלטה בדף – עוצר את המוזיקה (כמו שיחת טלפון); false = משחרר והמוזיקה חוזרת */
         @JavascriptInterface public void prefetch(String u) { if (!ok() || u == null) return; try { if (shellUrl(Uri.parse(u))) refreshShell(u, 600000); } catch (Exception e) { /* בלי */ } } // ⚡ 25/11: עותק מראש של הדשבורד (להחלקה מדף השערים)
         @JavascriptInterface public void musicPause(boolean on) { if (!ok()) return; runOnUiThread(() -> audioFocus(on)); }
+        /** 🗣️ (25/11): הכתבה חיה בצ'אט – הדף מקבל את הטקסט תוך כדי דיבור ב-window.__gaDict(סוג, טקסט) */
+        @JavascriptInterface public boolean dictOk() { return android.speech.SpeechRecognizer.isRecognitionAvailable(MainActivity.this); }
+        @JavascriptInterface public void dictStart() { if (!ok()) return; runOnUiThread(MainActivity.this::dictBegin); }
+        @JavascriptInterface public void dictStop() { if (!ok()) return; runOnUiThread(MainActivity.this::dictEnd); }
+        /** 🚗 (25/11): BYD מבטלת "הפעלה אוטומטית" אחרי כל עדכון – הדף מציג תזכורת פעם אחת לכל גרסה, רק במסך הרכב */
+        @JavascriptInterface public boolean autostartNote() { return Prefs.carScreen(MainActivity.this) && getSharedPreferences("gates", MODE_PRIVATE).getInt("asVer", 0) != Updater.current(MainActivity.this); }
+        @JavascriptInterface public void autostartAck() { getSharedPreferences("gates", MODE_PRIVATE).edit().putInt("asVer", Updater.current(MainActivity.this)).apply(); LocalEngine.log("🚗 הפעלה אוטומטית: הבעלים סימן שאישר אחרי העדכון"); }
+        @JavascriptInterface public String openAutostart() { if (!ok()) return ""; return openAutostartScreen(); }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) { if (!ok()) return;
             final String i = String.valueOf(id).replaceAll("[^A-Za-z0-9]", "");
@@ -548,8 +556,74 @@ public class MainActivity extends Activity {
         } catch (Exception e) { musicReq = null; }
     }
 
+    // 🗣️ הכתבה חיה (25/11, הבעלים: "תמלול בלייב, כמו שהמקלדת מתמללת") – זיהוי הדיבור של גוגל במכשיר, עברית.
+    // ממשיך להקשיב עד שלוחצים שוב (אחרי כל משפט מתחיל מחדש), לכל היותר 3 דקות. אין הקלטה ששומרים או שולחים לשרת.
+    android.speech.SpeechRecognizer dictSr = null; boolean dictOn = false; String dictText = ""; long dictAt = 0;
+    final android.os.Handler dictH = new android.os.Handler(android.os.Looper.getMainLooper());
+    void dictJs(String type, String text) { if (web != null) web.evaluateJavascript("window.__gaDict && __gaDict('" + type + "', " + org.json.JSONObject.quote(text == null ? "" : text) + ")", null); }
+    static String dictFirst(Bundle b) { java.util.ArrayList<String> r = b == null ? null : b.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION); return r == null || r.isEmpty() ? "" : r.get(0).trim(); }
+    String dictJoin(String t) { return t.isEmpty() ? dictText : dictText.isEmpty() ? t : dictText + " " + t; }
+    void dictListen() {
+        if (dictSr == null) return;
+        Intent i = new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "he-IL");
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+        try { dictSr.startListening(i); } catch (Exception e) { dictFinish("err", "start"); }
+    }
+    void dictBegin() {
+        if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) { LocalEngine.log("🗣️ אין זיהוי דיבור במכשיר"); dictJs("err", "none"); return; }
+        dictFinish(null, null);
+        dictOn = true; dictText = ""; dictAt = System.currentTimeMillis();
+        dictSr = android.speech.SpeechRecognizer.createSpeechRecognizer(this);
+        dictSr.setRecognitionListener(new android.speech.RecognitionListener() {
+            @Override public void onReadyForSpeech(Bundle b) { dictJs("ready", dictText); }
+            @Override public void onPartialResults(Bundle b) { String t = dictFirst(b); if (!t.isEmpty()) dictJs("partial", dictJoin(t)); }
+            @Override public void onResults(Bundle b) {
+                dictText = dictJoin(dictFirst(b));
+                if (dictOn && System.currentTimeMillis() - dictAt < 180000) { dictJs("partial", dictText); dictH.postDelayed(MainActivity.this::dictListen, 150); } // ממשיכים למשפט הבא
+                else dictFinish("end", dictText);
+            }
+            @Override public void onError(int e) {
+                boolean quiet = e == android.speech.SpeechRecognizer.ERROR_NO_MATCH || e == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT;
+                if (dictOn && quiet && System.currentTimeMillis() - dictAt < 180000) { dictH.postDelayed(MainActivity.this::dictListen, 150); return; } // שתיקה – ממשיכים להקשיב
+                if (!dictOn || quiet) { dictFinish("end", dictText); return; }
+                LocalEngine.log("🗣️ הכתבה נעצרה – שגיאה " + e); dictFinish("err", String.valueOf(e));
+            }
+            @Override public void onBeginningOfSpeech() { }
+            @Override public void onRmsChanged(float v) { }
+            @Override public void onBufferReceived(byte[] b) { }
+            @Override public void onEndOfSpeech() { }
+            @Override public void onEvent(int t, Bundle b) { }
+        });
+        dictListen();
+    }
+    /** לחיצה שנייה: מסיימים את המשפט האחרון (התוצאה מגיעה ב-onResults); אם לא הגיעה תוך 3 שניות – סוגרים בכל מקרה */
+    void dictEnd() {
+        if (dictSr == null) { dictJs("end", dictText); return; }
+        dictOn = false; dictH.removeCallbacksAndMessages(null);
+        try { dictSr.stopListening(); } catch (Exception e) { }
+        dictH.postDelayed(() -> { if (dictSr != null) dictFinish("end", dictText); }, 3000);
+    }
+    void dictFinish(String type, String text) {
+        dictOn = false; dictH.removeCallbacksAndMessages(null);
+        if (dictSr != null) { try { dictSr.destroy(); } catch (Exception e) { } dictSr = null; }
+        if (type != null) dictJs(type, text);
+    }
+
+    /** 🚗 (25/11): פותח את מסך "ניהול הפעלה אוטומטית" של BYD; אם אין – את מסך פרטי האפליקציה. מחזיר מה נפתח (לדף וליומן) */
+    String openAutostartScreen() {
+        String[] pk = { "com.byd.appstartmanagement" };
+        for (String p : pk) {
+            try { Intent i = getPackageManager().getLaunchIntentForPackage(p); if (i != null) { startActivity(i); LocalEngine.log("🚗 נפתח מסך ההפעלה האוטומטית של BYD"); return "byd"; } } catch (Exception e) { }
+        }
+        try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))); LocalEngine.log("🚗 אין מסך הפעלה אוטומטית של BYD – נפתח מסך פרטי האפליקציה"); return "app"; }
+        catch (Exception e) { LocalEngine.log("🚗 לא נפתח אף מסך הגדרות (" + e.getClass().getSimpleName() + ")"); return ""; }
+    }
+
     @Override
-    protected void onDestroy() { audioFocus(false); super.onDestroy(); }
+    protected void onDestroy() { audioFocus(false); dictFinish(null, null); super.onDestroy(); }
 
     @Override
     public void onBackPressed() {
