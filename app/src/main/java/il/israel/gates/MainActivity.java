@@ -294,6 +294,48 @@ public class MainActivity extends Activity {
             }).start();
         } catch (Exception e) { /* בלי */ }
     }
+    // ⚡ 25/11: מבנה הדפים (דשבורד, שערים, לשוניות) נפתח מעותק בתוך האפליקציה – מיד, בלי לחכות לשרת; ברקע נבדקת גרסה חדשה לפתיחה הבאה. הנתונים תמיד מהשרת
+    private volatile String uaStr = null;
+    private final java.util.Map<String, Long> shellAt = new java.util.concurrent.ConcurrentHashMap<>();
+    private java.io.File shellFile(String url) { java.io.File f = pageFile(url); return f == null ? null : new java.io.File(getFilesDir(), "shell-" + f.getName()); }
+    private boolean shellUrl(Uri u) {
+        String q = u.getQuery() == null ? "" : "&" + u.getQuery();
+        return "https".equals(u.getScheme()) && siteHost != null && siteHost.equals(u.getHost()) && u.getPath() != null && u.getPath().startsWith("/gate/")
+            && !q.matches(".*&(pdf|snap|sw|xc|ec|byd|pair|join)=.*") && !q.matches(".*&a=(grantget|clipv|clipget|sw)(&.*)?$");
+    }
+    private android.webkit.WebResourceResponse fastPage(WebResourceRequest r) {
+        try {
+            if (!"GET".equals(r.getMethod()) || !online()) return null; // בלי רשת – הטיפול הקיים (העותק השמור / מסך "אין חיבור")
+            java.util.Map<String, String> hd = r.getRequestHeaders(); String acc = hd == null ? null : hd.get("Accept");
+            if (acc == null || acc.indexOf("text/html") < 0 || hd.containsKey("Range") || !shellUrl(r.getUrl())) return null;
+            String url = r.getUrl().toString(); java.io.File f = shellFile(url);
+            refreshShell(url, r.isForMainFrame() ? 0 : 60000);
+            if (f == null || !f.exists()) return null; // פעם ראשונה – מהשרת כרגיל (והעותק נשמר ברקע)
+            java.util.Map<String, String> rh = new java.util.HashMap<>(); rh.put("Cache-Control", "no-store");
+            return new android.webkit.WebResourceResponse("text/html", "utf-8", 200, "OK", rh, new java.io.FileInputStream(f));
+        } catch (Exception e) { return null; }
+    }
+    private void refreshShell(final String url, long minGap) {
+        Long last = shellAt.get(url); if (last != null && System.currentTimeMillis() - last < Math.max(minGap, 5000)) return;
+        shellAt.put(url, System.currentTimeMillis());
+        final String cookie = android.webkit.CookieManager.getInstance().getCookie(url), ua = uaStr;
+        new Thread(() -> {
+            try {
+                java.io.File f = shellFile(url); if (f == null) return;
+                java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                h.setConnectTimeout(8000); h.setReadTimeout(15000); h.setInstanceFollowRedirects(false); if (ua != null) h.setRequestProperty("User-Agent", ua);
+                h.setRequestProperty("Accept", "text/html");
+                if (cookie != null) h.setRequestProperty("Cookie", cookie);
+                int code = h.getResponseCode();
+                if (code == 200 && "1".equals(h.getHeaderField("X-GA-Shell"))) {
+                    byte[] body; try (java.io.InputStream in = h.getInputStream()) { body = readAll(in); } h.disconnect();
+                    if (body.length > 3000000) return;
+                    java.io.File tmp = new java.io.File(getFilesDir(), "shell-" + Thread.currentThread().getId() + ".tmp");
+                    java.nio.file.Files.write(tmp.toPath(), body); tmp.renameTo(f);
+                } else { h.disconnect(); if (code != 304 && code < 500) f.delete(); } // יציאה / כניסה פגה / דף שאינו מבנה – לא שומרים עותק
+            } catch (Exception e) { /* בלי רשת – נשאר העותק הקודם */ }
+        }).start();
+    }
     private static byte[] readAll(java.io.InputStream in) throws java.io.IOException { java.io.ByteArrayOutputStream o = new java.io.ByteArrayOutputStream(); byte[] b = new byte[16384]; int n; while ((n = in.read(b)) > 0) o.write(b, 0, n); return o.toByteArray(); }
     private volatile boolean offlineShown = false, netWatched = false;
     private boolean online() { try { android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE); android.net.NetworkInfo ni = cm.getActiveNetworkInfo(); return ni != null && ni.isConnected(); } catch (Exception e) { return true; } }
@@ -317,6 +359,7 @@ public class MainActivity extends Activity {
         ws.setCacheMode(online() ? WebSettings.LOAD_DEFAULT : WebSettings.LOAD_CACHE_ELSE_NETWORK); // 📵 22/11: בלי תקשורת – העותק השמור של הדף
         watchNet();
         ws.setUserAgentString(ws.getUserAgentString() + " GatesApp/1"); // הדף מזהה שזו האפליקציה (מסתיר שידור מהדפדפן, מציג "הגדרות")
+        uaStr = ws.getUserAgentString();
         web.addJavascriptInterface(new Bridge(), "GatesApp");
         final String host = Uri.parse(start).getHost(); siteHost = host;
         web.setWebViewClient(new WebViewClient() {
@@ -325,6 +368,8 @@ public class MainActivity extends Activity {
                 if (r.isForMainFrame() && !savedShown) { String u0 = r.getUrl().toString(), html = savedPage(u0); if (html != null) { savedShown = true; v.loadDataWithBaseURL(u0, html, "text/html", "utf-8", u0); return; } } // 📵 23/11: העותק שהאפליקציה שמרה בעצמה (מסך הרכב לא שמר עותק בדפדפן)
                 if (r.isForMainFrame()) { WebSettings s2 = v.getSettings(); if (s2.getCacheMode() != WebSettings.LOAD_CACHE_ONLY) { s2.setCacheMode(WebSettings.LOAD_CACHE_ONLY); v.reload(); return; } offlineShown = true; showOffline(); } // קודם העותק השמור, ורק אם אין – מסך "אין חיבור" // בלי קליטה: מסך בעברית, בלי להציג את הקישור הסודי (18/11)
             }
+            @Override
+            public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) { return fastPage(r); } // ⚡ 25/11
             @Override
             public void onPageFinished(WebView v, String url) { if (!savedShown) savePage(url); }
             @Override
@@ -472,6 +517,7 @@ public class MainActivity extends Activity {
             });
         }
         /** 🎵 (25/11): בזמן הקלטה בדף – עוצר את המוזיקה (כמו שיחת טלפון); false = משחרר והמוזיקה חוזרת */
+        @JavascriptInterface public void prefetch(String u) { if (!ok() || u == null) return; try { if (shellUrl(Uri.parse(u))) refreshShell(u, 600000); } catch (Exception e) { /* בלי */ } } // ⚡ 25/11: עותק מראש של הדשבורד (להחלקה מדף השערים)
         @JavascriptInterface public void musicPause(boolean on) { if (!ok()) return; runOnUiThread(() -> audioFocus(on)); }
         @JavascriptInterface public boolean lockOpen() { return Prefs.lock(MainActivity.this) == 1; }
         @JavascriptInterface public void auth(String id) { if (!ok()) return;
