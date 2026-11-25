@@ -262,7 +262,7 @@ public class MainActivity extends Activity {
     }
 
     private void openWeb() { openWeb(startUrl()); }
-    private void askUnlock(String url) { startActivity(new Intent(this, PatternActivity.class).putExtra("url", url)); }
+    private void askUnlock(String url) { LocalEngine.log("🔐 מעבר לדשבורד נחסם – הרכב נעול, פותח מסך תבנית"); try { startActivity(new Intent(this, PatternActivity.class).putExtra("url", url)); } catch (Exception e) { LocalEngine.log("🔐 מסך התבנית לא נפתח: " + e.getClass().getSimpleName()); } }
     // 📵 23/11: עותק של הדף בקובץ של האפליקציה – נשמר אחרי כל טעינה מוצלחת (פעם בשעה לכל כתובת), ונפתח כשאין אינטרנט
     private volatile boolean savedShown = false;
     private final java.util.Map<String, Long> savedAt = new java.util.HashMap<>();
@@ -383,6 +383,7 @@ public class MainActivity extends Activity {
                 // באפליקציה נשארים רק דפי השערים; כניסה עם גוגל (גוגל חוסמת בתוך אפליקציות), וואטסאפ, OwnTracks וכו' – בחוץ
                 boolean inside = "https".equals(u.getScheme()) && host != null && host.equals(u.getHost()) && !u.getPath().endsWith("/google");
                 if (inside && CarLock.needed(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, u.toString())) { askUnlock(u.toString()); return true; } // 🔐 23/11: מסך הרכב – רק דף השערים בלי תבנית
+                if (inside && Prefs.carScreen(MainActivity.this) && !CarLock.isGatesPage(MainActivity.this, u.toString())) LocalEngine.log("🧭 מעבר לדף: " + (u.getFragment() != null ? "#" + u.getFragment() : "") + " (נעול: " + (CarLock.needed(MainActivity.this) ? "כן" : "לא") + ")");
                 if (inside) { String cur = v.getUrl(); if (r.isForMainFrame() && cur != null && !samePage(cur, u.toString()) && slideDir == 0) slideStart(CarLock.isGatesPage(MainActivity.this, u.toString()) ? -1 : 1); return false; } // 🎞️ 25/11
                 if ("mail.google.com".equals(u.getHost())) { // 📧 מייל: אפליקציית Gmail (המייל עצמו, ואם לא – פתיחת Gmail), אחרת הדפדפן (18/11)
                     try { startActivity(new Intent(Intent.ACTION_VIEW, u).setPackage("com.google.android.gm")); return true; } catch (Exception e) { /* Gmail לא מקבל את הקישור */ }
@@ -496,6 +497,7 @@ public class MainActivity extends Activity {
     }
     /** מעבר לדף אחר באתר שלנו עם החלקה (מהדף: GatesApp.nav) */
     void slideTo(String url, int dir) {
+        if (Prefs.carScreen(this)) LocalEngine.log("🧭 החלקה לדשבורד (נעול: " + (CarLock.needed(this) ? "כן" : "לא") + ")");
         if (web == null || url == null || !url.startsWith("https://")) return;
         if (CarLock.needed(this) && !CarLock.isGatesPage(this, url)) { askUnlock(url); return; }
         String cur = web.getUrl();
