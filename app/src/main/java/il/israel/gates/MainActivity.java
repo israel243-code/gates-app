@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     /** מה פותחים: הדשבורד (מצב מנהל) או דף השערים האישי */
     private String startUrl() {
         boolean g = Prefs.valid(Prefs.url(this)), a = Prefs.isDash(Prefs.admin(this));
-        if (a && (Prefs.adminView(this) || !g)) return Prefs.admin(this);
+        if (a && (Prefs.adminView(this) || !g || !Prefs.carScreen(this))) return Prefs.admin(this); // 🏠 25/11 (הבעלים, סרטון: "נפתח על השערים וקופץ"): בטלפון – תמיד ישר לדשבורד; ברכב – לפי הבחירה (שערים)
         return g ? Prefs.url(this) : null;
     }
 
