@@ -37,5 +37,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk gates.apk
-          gh release delete latest -y --cleanup-tag || true
-          gh release create latest gates.apk --title "שערים 1 · b1.${{ github.run_number }} · עדכון #$(( ${{ github.run_number }} - 11 ))" --notes "בנייה אוטומטית"
+          T="שערים 1 · b1.${{ github.run_number }} · עדכון #$(( ${{ github.run_number }} - 11 ))"
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest gates.apk --clobber 2>&1 | tee pub.log && gh release edit latest --title "$T" 2>&1 | tee -a pub.log || { sed 's/^/::error::/' pub.log; exit 1; }
+          else
+            gh release create latest gates.apk --title "$T" --notes "בנייה אוטומטית" 2>&1 | tee pub.log || { sed 's/^/::error::/' pub.log; exit 1; }
+          fi
