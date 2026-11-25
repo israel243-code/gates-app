@@ -542,6 +542,10 @@ public class MainActivity extends Activity {
 
     /** 🎵 (25/11): "פוקוס שמע" זמני – נגן המוזיקה (ברכב / בטלפון) עוצר, ובשחרור ממשיך */
     android.media.AudioFocusRequest musicReq = null;
+    boolean mediaPaused = false;
+    static void mediaKey(android.media.AudioManager am, int code) {
+        try { am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code)); am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code)); } catch (Exception e) { }
+    }
     void audioFocus(boolean on) {
         android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
         if (am == null) return;
@@ -551,8 +555,12 @@ public class MainActivity extends Activity {
                 musicReq = new android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
                         .setAudioAttributes(new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ASSISTANT).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
                         .setOnAudioFocusChangeListener(c -> { }).build();
-                am.requestAudioFocus(musicReq);
-            } else if (musicReq != null) { am.abandonAudioFocusRequest(musicReq); musicReq = null; }
+                int r = am.requestAudioFocus(musicReq);
+                // 25/11 (הבעלים: "ההקלטה לא עוצרת את השירים"): נגן הרכב מתעלם מבקשת השקט – לוחצים "השהה" כמו בכפתור בהגה, ובסיום "נגן"
+                mediaPaused = am.isMusicActive();
+                if (mediaPaused) mediaKey(am, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE);
+                LocalEngine.log("🎵 הקלטה: בקשת שקט " + (r == android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED ? "אושרה" : "נדחתה") + (mediaPaused ? " · נשלח השהה לנגן" : " · לא התנגנה מוזיקה"));
+            } else if (musicReq != null) { am.abandonAudioFocusRequest(musicReq); musicReq = null; if (mediaPaused) { mediaPaused = false; mediaKey(am, android.view.KeyEvent.KEYCODE_MEDIA_PLAY); } }
         } catch (Exception e) { musicReq = null; }
     }
 
