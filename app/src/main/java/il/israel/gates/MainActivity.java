@@ -411,6 +411,18 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        web.setDownloadListener((url, ua, cd, mime, len) -> { // 📥 26/11: הורדה מקישור באתר
+            try {
+                if (url.startsWith("blob:") || url.startsWith("data:")) return; // קבצים שהדף יצר – דרך GatesApp.saveFile
+                android.app.DownloadManager.Request r = new android.app.DownloadManager.Request(Uri.parse(url));
+                String ck = android.webkit.CookieManager.getInstance().getCookie(url); if (ck != null) r.addRequestHeader("Cookie", ck);
+                r.addRequestHeader("User-Agent", ua); r.setMimeType(mime);
+                r.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, android.webkit.URLUtil.guessFileName(url, cd, mime));
+                r.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                ((android.app.DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(r);
+                Toast.makeText(MainActivity.this, "⬇️ מוריד לתיקיית ההורדות…", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) { Toast.makeText(MainActivity.this, "⚠️ ההורדה לא התחילה", Toast.LENGTH_SHORT).show(); }
+        });
         web.setWebChromeClient(new WebChromeClient() {
             // 21/11: חלונות "אישור / ביטול" של הדף – חלון של האפליקציה, בלי "בדף שבכתובת ..." (הבעלים: "לא נעים בעין")
             @Override public void onPermissionRequest(android.webkit.PermissionRequest r) { // 🎙️ רק לאתר שלנו, ורק מיקרופון
@@ -577,6 +589,8 @@ public class MainActivity extends Activity {
         /** 🌗 25/11: הבחירה מהדף נשמרת גם לאפליקציה – הרקע בין דפים, המסכים של האפליקציה והחלונות */
         @JavascriptInterface public void setUiMode(String m) { if (m == null || !m.matches("light|dark|system")) return; getSharedPreferences("gates", MODE_PRIVATE).edit().putString("uiMode", m).apply(); runOnUiThread(MainActivity.this::applyChrome); }
         /** 🔐 26/11: מעבר לחתימה חדשה – האם כבר עברנו, והפעלה (ברכב לבד; בטלפון – הורדה + הסרה + התקנה) */
+        /** 📥 26/11 (הבעלים: "האקסל שיורד מהדוח יורד בלי הערות"): קובץ שהדף יצר (אקסל עם הערות, PDF) – נשמר בתיקיית ההורדות ונפתח מיד */
+        @JavascriptInterface public void saveFile(String name, String mime, String b64) { if (!ok()) return; runOnUiThread(() -> saveDownload(name, mime, b64)); }
         @JavascriptInterface public boolean newKey() { return Migrate.onNewKey(MainActivity.this); }
         @JavascriptInterface public void migrate() { if (!ok()) return; java.util.function.Consumer<String> say = (m) -> runOnUiThread(() -> { if (web != null) web.evaluateJavascript("window.__gaMig && __gaMig(" + org.json.JSONObject.quote(m) + ")", null); });
             if (Prefs.carScreen(MainActivity.this)) Migrate.runCar(MainActivity.this, say); else Migrate.runPhone(MainActivity.this, say); }
@@ -597,6 +611,20 @@ public class MainActivity extends Activity {
                     () -> { if (web != null) web.evaluateJavascript("window.__gaAuth && __gaAuth('" + i + "', true)", null); },
                     () -> { if (web != null) web.evaluateJavascript("window.__gaAuth && __gaAuth('" + i + "', false)", null); }));
         }
+    }
+
+    void saveDownload(String name, String mime, String b64) {
+        try {
+            byte[] data = android.util.Base64.decode(b64, android.util.Base64.DEFAULT);
+            String nm = (name == null || name.trim().isEmpty() ? "קובץ" : name.replaceAll("[\\\\/:*?\"<>|]", "_"));
+            android.content.ContentValues cv = new android.content.ContentValues();
+            cv.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, nm); cv.put(android.provider.MediaStore.Downloads.MIME_TYPE, mime);
+            Uri u = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+            try (java.io.OutputStream o = getContentResolver().openOutputStream(u)) { o.write(data); }
+            Toast.makeText(this, "✅ נשמר בתיקיית ההורדות: " + nm, Toast.LENGTH_LONG).show();
+            LocalEngine.log("📥 נשמר קובץ: " + nm + " (" + data.length / 1024 + "KB)");
+            try { startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(u, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)); } catch (Exception e) { /* אין אפליקציה שפותחת – נשאר בהורדות */ }
+        } catch (Exception e) { Toast.makeText(this, "⚠️ השמירה נכשלה", Toast.LENGTH_LONG).show(); LocalEngine.log("📥 שמירת קובץ נכשלה: " + e.getClass().getSimpleName()); }
     }
 
     void micDone(boolean granted) {
