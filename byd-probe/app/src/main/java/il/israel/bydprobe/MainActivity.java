@@ -43,6 +43,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle b) {
+        Installer.NEW = Installer.newKey(this); // 🔐 26/11
         super.onCreate(b);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -88,7 +89,7 @@ public class MainActivity extends Activity {
 
         upd = btn("🔄 בדוק עדכונים", Color.rgb(71, 85, 105));
         upd.setOnClickListener(v -> {
-            if (newer) { Installer.install(this, Installer.SELF, "עדכון ל\"הרכב שלי\""); return; }
+            if (newer) { Installer.install(this, Installer.self(), "עדכון ל\"הרכב שלי\""); return; }
             upd.setText("⏳ בודק…"); checkUpdate(true);
         });
         root.addView(upd, 2, new LinearLayout.LayoutParams(-1, dp(64)));
@@ -98,7 +99,7 @@ public class MainActivity extends Activity {
         inst.setOrientation(LinearLayout.HORIZONTAL);
         inst.setPadding(0, dp(12), 0, 0);
         gatesBtn = btn("", Color.rgb(13, 148, 136));
-        gatesBtn.setOnClickListener(v -> Installer.install(this, Installer.GATES, "אפליקציית השערים"));
+        gatesBtn.setOnClickListener(v -> Installer.install(this, Installer.gates(), "אפליקציית השערים"));
         Button carApp = btn("🚗 אפליקציית הרכב – בקרוב", Color.rgb(51, 65, 85));
         carApp.setEnabled(false); carApp.setAlpha(0.6f);
         inst.addView(gatesBtn, new LinearLayout.LayoutParams(0, dp(64), 1));
@@ -273,7 +274,7 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             String res = "⚠️ אין תקשורת – נסה שוב";
             try {
-                HttpURLConnection h = (HttpURLConnection) new URL("https://api.github.com/repos/israel243-code/gates-app/releases/tags/byd-latest").openConnection();
+                HttpURLConnection h = (HttpURLConnection) new URL("https://api.github.com/repos/israel243-code/gates-app/releases/tags/" + Installer.tag()).openConnection();
                 h.setConnectTimeout(10000); h.setReadTimeout(10000);
                 InputStream is = h.getInputStream();
                 byte[] buf = new byte[8192]; int n; StringBuilder sb = new StringBuilder();

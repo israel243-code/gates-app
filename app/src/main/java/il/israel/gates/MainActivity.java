@@ -48,6 +48,7 @@ public class MainActivity extends Activity {
         if (Prefs.carScreen(this)) { Net.start(this); ClipAgent.start(this); } // 📶 סים של הרכב כשאין אינטרנט ברשת הרגילה // 🎥 22/11: גם בפתיחת האפליקציה ברכב, לא רק כשמשדרים מיקום
         { final android.content.Context x = getApplicationContext(); new Thread(() -> WorkoutService.sendPending(x)).start(); } // 🏃 אימונים שלא נשלחו
         // 🔐 26/11: התקנה חדשה אחרי מעבר לחתימה חדשה – ההגדרות מהאפליקציה הקודמת (ברכב: מהתסריט; בטלפון: מלוח ההעתקה)
+        Updater.NEW = Migrate.onNewKey(this);
         if (!Migrate.importIfFresh(this, getIntent().getStringExtra("restore"))) Migrate.importFromClipboard(this);
         take(getIntent());
         show();

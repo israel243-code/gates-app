@@ -15,8 +15,20 @@ import android.widget.Toast;
 
 /** הורדה והתקנה בתוך האפליקציה (בלי דפדפן ובלי קבצים): עדכון של עצמה, וגם התקנה / עדכון של אפליקציית השערים. */
 final class Installer {
-    static final String SELF = "https://github.com/israel243-code/gates-app/releases/download/byd-latest/byd-probe.apk";
-    static final String GATES = "https://github.com/israel243-code/gates-app/releases/download/latest/gates.apk";
+    // 🔐 26/11: אחרי המעבר לחתימה החדשה (המפתח הישן נחשף) – הורדות מהכתובות של הגרסאות החתומות במפתח החדש. NEW נקבע בפתיחה (MainActivity)
+    static volatile boolean NEW = false;
+    static String self() { return NEW ? "https://github.com/israel243-code/gates-app/releases/download/byd-latest2/byd-probe2.apk" : "https://github.com/israel243-code/gates-app/releases/download/byd-latest/byd-probe.apk"; }
+    static String gates() { return NEW ? "https://github.com/israel243-code/gates-app/releases/download/latest2/gates2.apk" : "https://github.com/israel243-code/gates-app/releases/download/latest/gates.apk"; }
+    static String tag() { return NEW ? "byd-latest2" : "byd-latest"; }
+    static boolean newKey(android.content.Context c) {
+        try {
+            android.content.pm.PackageInfo pi = c.getPackageManager().getPackageInfo(c.getPackageName(), android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);
+            android.content.pm.Signature[] sg = pi.signingInfo.getApkContentsSigners();
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256").digest(sg[0].toByteArray());
+            StringBuilder b = new StringBuilder(); for (byte x : d) b.append(String.format("%02x", x));
+            return "0852c6aad0bb1c48e32da901a8fc483d9e9011a6aa63cc2194046b584353a62f".equals(b.toString());
+        } catch (Throwable e) { return false; }
+    }
 
     private Installer() {}
 

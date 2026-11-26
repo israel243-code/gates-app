@@ -31,6 +31,10 @@ final class Updater {
 
     static final String APK = "https://github.com/israel243-code/gates-app/releases/download/latest/gates.apk";
     private static final String API = "https://api.github.com/repos/israel243-code/gates-app/releases/tags/latest";
+    // 🔐 26/11: אחרי המעבר לחתימה החדשה – העדכונים מהכתובת של הגרסאות החתומות במפתח החדש (latest2). נקבע בפתיחה (MainActivity)
+    static volatile boolean NEW = false;
+    static String apk() { return NEW ? "https://github.com/israel243-code/gates-app/releases/download/latest2/gates2.apk" : APK; }
+    static String api() { return NEW ? "https://api.github.com/repos/israel243-code/gates-app/releases/tags/latest2" : API; }
 
     static int current(Context c) {
         try { return (int) c.getPackageManager().getPackageInfo(c.getPackageName(), 0).getLongVersionCode(); }
@@ -56,7 +60,7 @@ final class Updater {
         }
         try {
             final DownloadManager dm = a.getSystemService(DownloadManager.class);
-            final long id = dm.enqueue(new DownloadManager.Request(Uri.parse(APK))
+            final long id = dm.enqueue(new DownloadManager.Request(Uri.parse(apk()))
                     .setTitle("עדכון לאפליקציית השערים").setMimeType("application/vnd.android.package-archive")
                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                     .setDestinationInExternalFilesDir(a, Environment.DIRECTORY_DOWNLOADS, "gates-" + System.currentTimeMillis() + ".apk"));
@@ -74,7 +78,7 @@ final class Updater {
             IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
             if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(done, f, Context.RECEIVER_EXPORTED); else app.registerReceiver(done, f);
         } catch (Exception e) {
-            a.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(APK))); // גיבוי: דרך הדפדפן
+            a.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(apk()))); // גיבוי: דרך הדפדפן
         }
     }
 
@@ -83,7 +87,7 @@ final class Updater {
     static void peek() {
         new Thread(() -> {
             try {
-                HttpURLConnection c = (HttpURLConnection) new URL(API).openConnection();
+                HttpURLConnection c = (HttpURLConnection) new URL(api()).openConnection();
                 c.setConnectTimeout(8000); c.setReadTimeout(8000); c.setRequestProperty("User-Agent", "GatesApp");
                 try (InputStream in = c.getInputStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) {
                     String name = new JSONObject(s.hasNext() ? s.next() : "{}").optString("name", "");
@@ -106,7 +110,7 @@ final class Updater {
             int latest = 0;
             String notes = "";
             try {
-                HttpURLConnection c = (HttpURLConnection) new URL(API).openConnection();
+                HttpURLConnection c = (HttpURLConnection) new URL(api()).openConnection();
                 c.setConnectTimeout(8000);
                 c.setReadTimeout(8000);
                 c.setRequestProperty("Accept", "application/vnd.github+json");
