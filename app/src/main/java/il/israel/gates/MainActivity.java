@@ -591,6 +591,9 @@ public class MainActivity extends Activity {
         /** 🔐 26/11: מעבר לחתימה חדשה – האם כבר עברנו, והפעלה (ברכב לבד; בטלפון – הורדה + הסרה + התקנה) */
         /** 📥 26/11 (הבעלים: "האקסל שיורד מהדוח יורד בלי הערות"): קובץ שהדף יצר (אקסל עם הערות, PDF) – נשמר בתיקיית ההורדות ונפתח מיד */
         @JavascriptInterface public void saveFile(String name, String mime, String b64) { if (!ok()) return; runOnUiThread(() -> saveDownload(name, mime, b64)); }
+        /** 🛡️ 26/11 (הבעלים: "האפליקציה צריכה לדעת שאני המנהל תמיד"): הדף נותן את קישור הדשבורד רק לבעלים – נשמר כמצב מנהל לבד */
+        @JavascriptInterface public void setDash(String u) { if (!ok() || !Prefs.isDash(u) || u.equals(Prefs.admin(MainActivity.this))) return;
+            Prefs.setAdmin(MainActivity.this, u); if (!Prefs.carScreen(MainActivity.this)) Prefs.setAdminView(MainActivity.this, true); LocalEngine.log("🛡️ מצב מנהל נשמר לבד (קישור הבעלים)"); }
         @JavascriptInterface public boolean newKey() { return Migrate.onNewKey(MainActivity.this); }
         @JavascriptInterface public void migrate() { if (!ok()) return; java.util.function.Consumer<String> say = (m) -> runOnUiThread(() -> { if (web != null) web.evaluateJavascript("window.__gaMig && __gaMig(" + org.json.JSONObject.quote(m) + ")", null); });
             if (Prefs.carScreen(MainActivity.this)) Migrate.runCar(MainActivity.this, say); else Migrate.runPhone(MainActivity.this, say); }
