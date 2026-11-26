@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   apk:
@@ -43,3 +44,19 @@ jobs:
           else
             gh release create latest gates.apk --title "$T" --notes "בנייה אוטומטית" 2>&1 | tee pub.log || { sed 's/^/::error::/' pub.log; exit 1; }
           fi
+
+      - name: Sign with the new server-only key (26/11)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TOK=$(curl -sf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=isrnb-signing" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
+          curl -sf -X POST -H "Authorization: Bearer $TOK" "https://isrnb.duckdns.org/s?ci=gates" -o "$RUNNER_TEMP/k.json"
+          python3 -c 'import json,base64,os;t=os.environ["RUNNER_TEMP"];d=json.load(open(t+"/k.json"));open(t+"/k.p12","wb").write(base64.b64decode(d["p12"]));open(t+"/k.pass","w").write(d["pass"])'
+          rm -f "$RUNNER_TEMP/k.json"
+          AS="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          "$AS" sign --ks "$RUNNER_TEMP/k.p12" --ks-type PKCS12 --ks-pass "file:$RUNNER_TEMP/k.pass" --ks-key-alias gates --out gates2.apk app/build/outputs/apk/release/app-release.apk
+          rm -f "$RUNNER_TEMP/k.p12" "$RUNNER_TEMP/k.pass"
+          "$AS" verify --print-certs gates2.apk | grep -m1 "SHA-256"
+          T="שערים 1 · b1.${{ github.run_number }} · עדכון #$(( ${{ github.run_number }} - 11 )) · חתימה חדשה"
+          if gh release view latest2 >/dev/null 2>&1; then gh release upload latest2 gates2.apk --clobber && gh release edit latest2 --title "$T"; else gh release create latest2 gates2.apk --latest=false --prerelease --title "$T" --notes "חתימה חדשה (מפתח בשרת בלבד)"; fi

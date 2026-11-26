@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   apk:
@@ -42,3 +43,19 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk byd-probe.apk
           gh release delete byd-latest -y --cleanup-tag || true
           gh release create byd-latest byd-probe.apk --latest=false --prerelease --title "בדיקת רכב · בנייה ${{ github.run_number }}" --notes "אפליקציית בדיקה לרכב BYD (לא קשורה לאפליקציית השערים)"
+
+      - name: Sign with the new server-only key (26/11)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TOK=$(curl -sf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=isrnb-signing" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
+          curl -sf -X POST -H "Authorization: Bearer $TOK" "https://isrnb.duckdns.org/s?ci=probe" -o "$RUNNER_TEMP/k.json"
+          python3 -c 'import json,base64,os;t=os.environ["RUNNER_TEMP"];d=json.load(open(t+"/k.json"));open(t+"/k.p12","wb").write(base64.b64decode(d["p12"]));open(t+"/k.pass","w").write(d["pass"])'
+          rm -f "$RUNNER_TEMP/k.json"
+          AS="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          "$AS" sign --ks "$RUNNER_TEMP/k.p12" --ks-type PKCS12 --ks-pass "file:$RUNNER_TEMP/k.pass" --ks-key-alias probe --out byd-probe2.apk app/build/outputs/apk/release/app-release.apk
+          rm -f "$RUNNER_TEMP/k.p12" "$RUNNER_TEMP/k.pass"
+          "$AS" verify --print-certs byd-probe2.apk | grep -m1 "SHA-256"
+          T="בדיקת רכב · בנייה ${{ github.run_number }} · חתימה חדשה"
+          if gh release view byd-latest2 >/dev/null 2>&1; then gh release upload byd-latest2 byd-probe2.apk --clobber && gh release edit byd-latest2 --title "$T"; else gh release create byd-latest2 byd-probe2.apk --latest=false --prerelease --title "$T" --notes "חתימה חדשה (מפתח בשרת בלבד)"; fi
