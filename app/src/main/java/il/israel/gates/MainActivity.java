@@ -47,6 +47,8 @@ public class MainActivity extends Activity {
         Brand.apply(this); // 21/11: "העוזר שלי" למנהל
         if (Prefs.carScreen(this)) { Net.start(this); ClipAgent.start(this); } // 📶 סים של הרכב כשאין אינטרנט ברשת הרגילה // 🎥 22/11: גם בפתיחת האפליקציה ברכב, לא רק כשמשדרים מיקום
         { final android.content.Context x = getApplicationContext(); new Thread(() -> WorkoutService.sendPending(x)).start(); } // 🏃 אימונים שלא נשלחו
+        // 🔐 26/11: התקנה חדשה אחרי מעבר לחתימה חדשה – ההגדרות מהאפליקציה הקודמת (ברכב: מהתסריט; בטלפון: מלוח ההעתקה)
+        if (!Migrate.importIfFresh(this, getIntent().getStringExtra("restore"))) Migrate.importFromClipboard(this);
         take(getIntent());
         show();
         Updater.check(this, true); // פעם ביום: חלון רק אם יש גרסה חדשה
@@ -573,6 +575,10 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean night() { return isNight(); }
         /** 🌗 25/11: הבחירה מהדף נשמרת גם לאפליקציה – הרקע בין דפים, המסכים של האפליקציה והחלונות */
         @JavascriptInterface public void setUiMode(String m) { if (m == null || !m.matches("light|dark|system")) return; getSharedPreferences("gates", MODE_PRIVATE).edit().putString("uiMode", m).apply(); runOnUiThread(MainActivity.this::applyChrome); }
+        /** 🔐 26/11: מעבר לחתימה חדשה – האם כבר עברנו, והפעלה (ברכב לבד; בטלפון – הורדה + הסרה + התקנה) */
+        @JavascriptInterface public boolean newKey() { return Migrate.onNewKey(MainActivity.this); }
+        @JavascriptInterface public void migrate() { if (!ok()) return; java.util.function.Consumer<String> say = (m) -> runOnUiThread(() -> { if (web != null) web.evaluateJavascript("window.__gaMig && __gaMig(" + org.json.JSONObject.quote(m) + ")", null); });
+            if (Prefs.carScreen(MainActivity.this)) Migrate.runCar(MainActivity.this, say); else Migrate.runPhone(MainActivity.this, say); }
         @JavascriptInterface public void nav(String url, int dir) { if (!ok()) return; runOnUiThread(() -> slideTo(url, dir)); } // 🎞️ 25/11: מעבר עם החלקה (ההחלקה בדף השערים)
         @JavascriptInterface public void musicPause(boolean on) { if (!ok()) return; runOnUiThread(() -> audioFocus(on)); }
         /** 🗣️ (25/11): הכתבה חיה בצ'אט – הדף מקבל את הטקסט תוך כדי דיבור ב-window.__gaDict(סוג, טקסט) */
