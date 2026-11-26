@@ -36,7 +36,9 @@ final class Net {
         } catch (Exception e) { LocalEngine.log("📶 אין אפשרות לבקש את הסים: " + e.getClass().getSimpleName()); }
         // 25/11 (הבעלים: "כתוב שאין תקשורת"): בדיקה אחת שנכשלה השאירה את האפליקציה בלי אינטרנט עד שינוי רשת הבא – עכשיו בודקים שוב כל דקה כל עוד לא עברנו לסים
         final android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
-        h.postDelayed(new Runnable() { @Override public void run() { if (!bound) decide(cm); h.postDelayed(this, 60000); } }, 60000);
+        // 26/11 (שער נגוהות: אחרי הפעלה מחדש עברו 2 דקות עד אינטרנט): בדיקה מיד, ואז כל 15 שניות עד שיש אינטרנט; אחר כך כל דקה
+        decide(cm);
+        h.postDelayed(new Runnable() { @Override public void run() { if (!bound) decide(cm); h.postDelayed(this, bound ? 60000 : 15000); } }, 15000);
     }
 
     // 22/11 (תיקון): עוברים לסים רק אחרי בדיקה אמיתית שהשרת עונה דרכו – אם הרכב חוסם את הסים לאפליקציה, לא עוברים (אחרת האפליקציה נשארת בלי כלום)

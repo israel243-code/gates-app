@@ -67,7 +67,12 @@ final class LocalEngine {
         synchronized (LOG) { LOG.add(0, t + "  " + s); while (LOG.size() > 40) LOG.remove(LOG.size() - 1); PENDING.add(t + "  " + s); while (PENDING.size() > 200) PENDING.remove(0); }
         if (app != null) try (java.io.FileWriter w = new java.io.FileWriter(new java.io.File(app.getFilesDir(), "pending.log"), true)) { w.write(t + "  " + s + "\n"); } catch (Exception e) { /* בלי קובץ */ }
     }
-    static void init(Context c) { if (app == null) app = c.getApplicationContext(); }
+    static void init(Context c) {
+        if (app == null) app = c.getApplicationContext();
+        if (!crashHook) { crashHook = true; final Thread.UncaughtExceptionHandler prev = Thread.getDefaultUncaughtExceptionHandler(); // 💥 26/11: קריסה – הסיבה נרשמת ביומן לפני שהאפליקציה נסגרת
+            Thread.setDefaultUncaughtExceptionHandler((t, e) -> { try { StackTraceElement[] st = e.getStackTrace(); log("💥 האפליקציה קרסה: " + e.getClass().getSimpleName() + (e.getMessage() != null ? " – " + e.getMessage() : "") + (st.length > 0 ? " @ " + st[0].getClassName().replace("il.israel.gates.", "") + ":" + st[0].getLineNumber() : "")); } catch (Throwable x) { } if (prev != null) prev.uncaughtException(t, e); }); }
+    }
+    private static boolean crashHook = false;
 
     LocalEngine(Context c) {
         this.c = c;
@@ -145,7 +150,8 @@ final class LocalEngine {
             JSONArray zone = my != null && my.optJSONArray("zone") != null ? my.optJSONArray("zone") : d.optJSONArray("zone"); // 📐 אזור במקום עיגול (18/11)
             boolean outside = zone != null && zone.length() >= 3 ? !inZone(lat, lon, zone) : dist > radius;
             Long pu = pendingUntil.get(g); boolean pend = pu != null && pu > now;      // 📵 22/11: פתיחה שנכשלה בלי אינטרנט – ניסיון חוזר עד דקה, גם בלי "מתקרבים"
-            if (pu != null && !pend) { pendingUntil.remove(g); log("⌛ " + g + ": התקשורת לא חזרה תוך דקה – הפתיחה בוטלה"); }
+            if (pu != null && !pend) { pendingUntil.remove(g); log("⌛ " + g + ": התקשורת לא חזרה תוך 3 דקות – הפתיחה בוטלה"); }
+            if (pend && dist > Math.max(radius * 2, 400)) { pendingUntil.remove(g); pend = false; log("⌛ " + g + ": התרחקת מהשער לפני שחזרה התקשורת – הפתיחה בוטלה"); } // 26/11: לא לפתוח כשכבר רחוק
             boolean startNear = firstFix && !outside && dist <= 40;                       // 23/11: השידור התחיל כשהרכב כבר צמוד לשער – פותחים בלי לחכות ל"מתקרבים"
             if (startNear) log("🚗 השידור התחיל ליד " + g + " (" + Math.round(dist) + " מ׳) – פותח מיד");
             if (!pend && !startNear && (outside || was == null || dist > was - 3)) continue; // מחוץ לרדיוס / לאזור, או לא מתקרבים
@@ -162,7 +168,7 @@ final class LocalEngine {
                 code = h.getResponseCode();
                 try (InputStream in = code < 400 ? h.getInputStream() : h.getErrorStream(); Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A")) { if (s.hasNext()) body = s.next(); }
                 catch (Exception e) { /* בלי גוף */ }
-            } catch (Exception e) { if (!pendingUntil.containsKey(g)) { pendingUntil.put(g, now + 60000); log("📵 אין אינטרנט – " + g + " ייפתח כשהתקשורת תחזור (עד דקה)"); } lastOpen.put(g, now - (long) (gap * 60000) + 3000); state = "אין אינטרנט – ממתין"; continue; } // ניסיון חוזר אחרי חצי דקה
+            } catch (Exception e) { if (!pendingUntil.containsKey(g)) { pendingUntil.put(g, now + 180000); log("📵 אין אינטרנט – " + g + " ייפתח ברגע שהתקשורת תחזור (עד 3 דקות, אם עדיין ליד השער)"); } lastOpen.put(g, now - (long) (gap * 60000) + 3000); state = "אין אינטרנט – ממתין"; continue; } // ניסיון חוזר אחרי חצי דקה
             pendingUntil.remove(g);
             JSONObject r = new JSONObject(body.isEmpty() ? "{}" : body);
             if (code == 403 && "expired".equals(r.optString("r"))) return "expired";
